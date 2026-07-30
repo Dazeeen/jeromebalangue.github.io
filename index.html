@@ -9,10 +9,10 @@
     <script src="static/js/head.js"></script>
     <link rel="preload" href="static/fonts/manrope-latin.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="preload" href="static/fonts/pinyon-script-latin.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="stylesheet" href="static/css/main.css">
-    <link rel="preload" href="static/media/images/bg.png" as="image">
-    <link rel="preload" href="static/media/images/hero-cutout.png" as="image">
-    <link rel="preload" href="static/media/images/about-cutout-final.png" as="image">
+    <link rel="stylesheet" href="static/css/main.css?v=1.0.29">
+    <link rel="preload" href="static/media/images/site/portfolio-background.png" as="image">
+    <link rel="preload" href="static/media/images/home/jerome-hero-cutout.png" as="image">
+    <link rel="preload" href="static/media/images/about/jerome-laptop-cutout.png" as="image">
 </head>
 
 <body>
@@ -122,7 +122,7 @@
                     class="portfolio-title__character">o</span><span class="portfolio-title__cursor">|</span></span>
         </h1>
 
-        <img class="portrait" src="static/media/images/hero-cutout.png"
+        <img class="portrait" src="static/media/images/home/jerome-hero-cutout.png"
             alt="Jerome Balangue wearing a black suit with his arms crossed" width="727" height="1236">
 
         <p class="role">Graphic Artist / Video Editor</p>
@@ -134,7 +134,7 @@
 
             <div class="about-section__grid">
                 <figure class="about-section__visual">
-                    <img class="about-section__portrait" src="static/media/images/about-cutout-final.png"
+                    <img class="about-section__portrait" src="static/media/images/about/jerome-laptop-cutout.png"
                         alt="Jerome Balangue holding an open laptop" width="910" height="959" loading="lazy">
                 </figure>
 
@@ -192,6 +192,14 @@
         </div>
     </section>
 
+    <div class="education-exit-cue" data-education-exit-cue role="status" aria-live="polite"
+        aria-atomic="true" aria-hidden="true">
+        <span class="sr-only" data-education-exit-message>Scroll down again to continue to Social Media Designs.</span>
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="m5 9 7 7 7-7"></path>
+        </svg>
+    </div>
+
     <section class="social-section page-view" id="social-media-design" data-page="social-media-design"
         aria-labelledby="social-title">
         <div class="social-section__inner">
@@ -203,80 +211,14 @@
                 </p>
             </header>
 
-            <div class="social-filters" role="group" aria-label="Filter social media designs">
-                <button class="social-filters__button is-active" type="button" data-social-filter="all"
-                    aria-pressed="true">All</button>
-                <button class="social-filters__button" type="button" data-social-filter="solar"
-                    aria-pressed="false">Solar</button>
-                <button class="social-filters__button" type="button" data-social-filter="real-estate"
-                    aria-pressed="false">Real Estate</button>
-                <button class="social-filters__button" type="button" data-social-filter="product"
-                    aria-pressed="false">Product</button>
-                <button class="social-filters__button" type="button" data-social-filter="campaign"
-                    aria-pressed="false">Campaign</button>
-            </div>
+            <div class="social-filters" role="group" aria-label="Filter social media designs"
+                data-social-filters aria-busy="true"></div>
 
             <div class="social-carousel" aria-label="Social media design gallery">
-                <div class="social-carousel__stage">
-                    <button class="social-carousel__slide" type="button" data-social-category="product campaign"
-                        aria-label="Feature Prefab Solutions sold-out campaign">
-                        <img src="static/media/images/SOLD OUT POSTER FOR PREFAB.png"
-                            alt="Prefab Solutions sold-out social media campaign" loading="lazy">
-                    </button>
-
-                    <button class="social-carousel__slide" type="button" data-social-category="product campaign"
-                        aria-label="Feature TCL air conditioner campaign">
-                        <img src="static/media/images/5 (1).png"
-                            alt="TCL air conditioner promotional social media design" loading="lazy">
-                    </button>
-
-                    <button class="social-carousel__slide" type="button" data-social-category="solar product"
-                        aria-label="Feature Avantech Saturn hybrid inverter">
-                        <img src="static/media/images/212.jpg"
-                            alt="Avantech Saturn hybrid inverter social media design" loading="lazy">
-                    </button>
-
-                    <button class="social-carousel__slide" type="button" data-social-category="solar campaign"
-                        aria-label="Feature Avantech hybrid system package">
-                        <img src="static/media/images/53.png"
-                            alt="Avantech 12 kilowatt hybrid system campaign" loading="lazy">
-                    </button>
-
-                    <button class="social-carousel__slide" type="button" data-social-category="real-estate campaign"
-                        aria-label="Feature Walnut property campaign">
-                        <img src="static/media/images/FB_IMG_1784076744122.jpg"
-                            alt="Walnut house real-estate social media design" loading="lazy">
-                    </button>
-
-                    <button class="social-carousel__slide" type="button" data-social-category="real-estate campaign"
-                        aria-label="Feature Walnut property details">
-                        <img src="static/media/images/FB_IMG_1784076746519.jpg"
-                            alt="Walnut house features social media design" loading="lazy">
-                    </button>
-
-                    <button class="social-carousel__slide" type="button" data-social-category="solar campaign"
-                        aria-label="Feature Save More with Solar campaign">
-                        <img src="static/media/images/POSTER FOR POSTING (12).png"
-                            alt="Save More with Solar promotional design" loading="lazy">
-                    </button>
-
-                    <button class="social-carousel__slide" type="button" data-social-category="solar product"
-                        aria-label="Feature Solar Storage Solutions campaign">
-                        <img src="static/media/images/23_20251210_163744_0022.png"
-                            alt="High-performance solar storage solutions design" loading="lazy">
-                    </button>
-
-                    <button class="social-carousel__slide" type="button" data-social-category="solar campaign"
-                        aria-label="Feature Brighter Choice campaign">
-                        <img src="static/media/images/101.png"
-                            alt="Avantech brighter choice hybrid power system design" loading="lazy">
-                    </button>
-
-                    <button class="social-carousel__slide" type="button" data-social-category="campaign"
-                        aria-label="Feature Palm Sunday campaign">
-                        <img src="static/media/images/12.png"
-                            alt="Palm Sunday commemorative social media design" loading="lazy">
-                    </button>
+                <div class="social-carousel__stage" aria-busy="true">
+                    <p class="social-carousel__status" role="status" data-social-gallery-status>
+                        Loading designs&hellip;
+                    </p>
                 </div>
 
                 <div class="social-carousel__controls">
@@ -289,7 +231,7 @@
                     <p class="social-carousel__counter" aria-live="polite">
                         <span data-social-current>01</span>
                         <span aria-hidden="true">/</span>
-                        <span data-social-total>10</span>
+                        <span data-social-total>00</span>
                     </p>
                     <button class="social-carousel__control social-carousel__control--next" type="button"
                         aria-label="Next social media design">
@@ -321,72 +263,98 @@
             <div class="print-showcase" aria-label="Interactive print and marketing material mockups">
                 <button class="print-object print-object--banner" type="button" data-print-kind="banner"
                     data-print-title="Roll Up Banner"
-                    data-print-image="static/media/images/0fde0c3d-ccfb-47b6-8f83-031fdc73c57c.png"
+                    data-print-image="static/media/images/print-marketing-materials/roll-up-banner/solar-pv-roll-up-banner.png"
+                    data-print-texture="static/media/images/print-marketing-materials/roll-up-banner/solar-pv-roll-up-banner.png"
                     aria-label="Open interactive 3D view of the Roll Up Banner">
                     <span class="print-object__model" aria-hidden="true">
                         <span class="print-object__surface">
-                            <img src="static/media/images/0fde0c3d-ccfb-47b6-8f83-031fdc73c57c.png"
-                                alt="" width="948" height="1659" loading="lazy" draggable="false">
+                            <img src="static/media/images/print-marketing-materials/roll-up-banner/solar-pv-roll-up-banner.png"
+                                alt="" width="1080" height="1350"
+                                loading="lazy" draggable="false">
                         </span>
                     </span>
                     <span class="print-object__label">Roll Up Banner</span>
                 </button>
 
                 <button class="print-object print-object--calling-card" type="button" data-print-kind="card"
-                    data-print-title="Calling Card" data-print-image="static/media/images/26.png"
-                    data-print-back="static/media/images/25.png"
+                    data-print-title="Calling Card"
+                    data-print-image="static/media/images/print-marketing-materials/calling-card/calling-card-front.png"
+                    data-print-back="static/media/images/print-marketing-materials/calling-card/calling-card-back.png"
                     aria-label="Open interactive 3D view of the Calling Card">
                     <span class="print-object__model" aria-hidden="true">
                         <span class="print-object__surface print-object__surface--secondary">
-                            <img src="static/media/images/26.png" alt="" width="1050" height="600" loading="lazy"
+                            <img src="static/media/images/print-marketing-materials/calling-card/calling-card-front.png"
+                                alt="" width="1050" height="600" loading="lazy"
                                 draggable="false">
                         </span>
                         <span class="print-object__surface print-object__surface--primary">
-                            <img src="static/media/images/25.png" alt="" width="1050" height="600" loading="lazy"
+                            <img src="static/media/images/print-marketing-materials/calling-card/calling-card-back.png"
+                                alt="" width="1050" height="600" loading="lazy"
                                 draggable="false">
                         </span>
                     </span>
                     <span class="print-object__label">Calling Card</span>
                 </button>
 
-                <button class="print-object print-object--notebook" type="button" data-print-kind="gift"
-                    data-print-title="Giveaway Notebook and Pen"
-                    data-print-image="static/media/images/POSTER FOR POSTING (7).jpg"
-                    aria-label="Open interactive 3D view of the Giveaway Notebook and Pen">
+                <button class="print-object print-object--notebook" type="button" data-print-kind="notebook"
+                    data-print-title="Corporate Notebook"
+                    data-print-image="static/media/images/print-marketing-materials/notebook/notebook-front.png?v=1.0.15"
+                    data-print-back="static/media/images/print-marketing-materials/notebook/notebook-back.png?v=1.0.15"
+                    aria-label="Open interactive view of the Corporate Notebook">
                     <span class="print-object__model" aria-hidden="true">
                         <span class="print-object__surface">
-                            <img src="static/media/images/POSTER FOR POSTING (7).jpg" alt="" width="1080" height="1350"
+                            <img src="static/media/images/print-marketing-materials/notebook/notebook-front.png?v=1.0.15"
+                                alt="" width="503"
+                                height="694"
                                 loading="lazy" draggable="false">
                         </span>
                     </span>
-                    <span class="print-object__label">Giveaway Notebook &amp; Pen</span>
+                    <span class="print-object__label">Corporate Notebook</span>
+                </button>
+
+                <button class="print-object print-object--pen" type="button" data-print-kind="pen"
+                    data-print-title="Corporate Ball Pen"
+                    data-print-image="static/media/images/print-marketing-materials/pen/corporate-ball-pen.png"
+                    data-print-texture="static/media/images/print-marketing-materials/pen/corporate-ball-pen.png"
+                    aria-label="Open interactive view of the Corporate Ball Pen">
+                    <span class="print-object__model" aria-hidden="true">
+                        <span class="print-object__surface">
+                            <img src="static/media/images/print-marketing-materials/pen/corporate-ball-pen.png"
+                                alt="" width="1080" height="1350"
+                                loading="lazy" draggable="false">
+                        </span>
+                    </span>
+                    <span class="print-object__label">Corporate Ball Pen</span>
                 </button>
 
                 <button class="print-object print-object--booth" type="button" data-print-kind="booth"
                     data-print-title="Collapsible Booth"
-                    data-print-image="static/media/images/FOR ACTUAL MODEL BOOTH (1).png"
+                    data-print-image="static/media/images/print-marketing-materials/booth/exhibition-booth-front.png"
+                    data-print-back="static/media/images/print-marketing-materials/booth/exhibition-booth-back.png"
+                    data-print-texture="static/media/images/print-marketing-materials/booth/exhibition-booth-front.png"
                     aria-label="Open interactive 3D view of the Collapsible Booth">
                     <span class="print-object__model" aria-hidden="true">
                         <span class="print-object__surface">
-                            <img src="static/media/images/FOR ACTUAL MODEL BOOTH (1).png" alt="" width="2245"
-                                height="1587" loading="lazy" draggable="false">
+                            <img src="static/media/images/print-marketing-materials/booth/exhibition-booth-front.png"
+                                alt="" width="2245" height="1587" loading="lazy" draggable="false">
                         </span>
                     </span>
                     <span class="print-object__label">Collapsible Booth</span>
                 </button>
 
                 <button class="print-object print-object--flyer" type="button" data-print-kind="flyer"
-                    data-print-title="Solar Product Flyer" data-print-image="static/media/images/3.png"
-                    data-print-back="static/media/images/4.png"
+                    data-print-title="Solar Product Flyer"
+                    data-print-image="static/media/images/print-marketing-materials/flyer/solar-product-flyer-front.png"
+                    data-print-back="static/media/images/print-marketing-materials/flyer/solar-product-flyer-back.png"
                     aria-label="Open interactive 3D view of the Solar Product Flyer">
                     <span class="print-object__model" aria-hidden="true">
                         <span class="print-object__surface print-object__surface--secondary">
-                            <img src="static/media/images/4.png" alt="" width="1414" height="2000" loading="lazy"
-                                draggable="false">
+                            <img src="static/media/images/print-marketing-materials/flyer/solar-product-flyer-back.png"
+                                alt="" width="1414" height="2000" loading="lazy" draggable="false">
                         </span>
                         <span class="print-object__surface print-object__surface--primary">
-                            <img src="static/media/images/3.png" alt="" width="1414" height="2000" loading="lazy"
-                                draggable="false">
+                            <img src="static/media/images/print-marketing-materials/flyer/solar-product-flyer-front.png"
+                                alt="" width="1414" height="2000" loading="lazy" draggable="false">
                         </span>
                     </span>
                     <span class="print-object__label">Flyer</span>
@@ -397,6 +365,71 @@
             <span class="print-section__index" aria-hidden="true">[4]</span>
         </div>
     </section>
+
+    <section class="ai-section page-view" id="ai-generated-design" data-page="ai-generated-design"
+        aria-labelledby="ai-title">
+        <div class="ai-section__hero">
+            <div class="ai-section__ambient" data-ai-ambient></div>
+
+            <header class="ai-section__masthead" aria-label="A.I. design collection">
+                <span>05 / A.I. Studies</span>
+                <span class="ai-section__brand">Jerome Balangue</span>
+                <span>Selected Work</span>
+            </header>
+
+            <div class="ai-section__center">
+                <p class="ai-section__eyebrow">A.I. Generated Design</p>
+                <h2 class="ai-section__title" id="ai-title">
+                    <span>Imagination,</span>
+                    <span>Reimagined.</span>
+                </h2>
+                <span class="ai-section__flourish" aria-hidden="true">create beyond</span>
+                <p class="ai-section__intro">
+                    Utilized A.I. tools to create high-quality, professional graphic designs and visual marketing
+                    materials.
+                </p>
+                <p class="ai-section__hint">Scroll to explore <span aria-hidden="true">&middot;</span> Click to look closer</p>
+            </div>
+
+            <span class="ai-section__index" aria-hidden="true">[5]</span>
+        </div>
+
+        <div class="ai-gallery-section" aria-labelledby="ai-gallery-title">
+            <header class="ai-gallery-section__header">
+                <div>
+                    <p class="ai-gallery-section__eyebrow">Selected visual studies</p>
+                    <h3 class="ai-gallery-section__title" id="ai-gallery-title">A.I. Image Gallery</h3>
+                </div>
+            </header>
+
+            <div class="ai-gallery" data-ai-gallery aria-busy="true" aria-live="polite">
+                <p class="ai-section__status" role="status" data-ai-gallery-status>
+                    Curating A.I. studies&hellip;
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <div class="ai-viewer" role="dialog" aria-modal="true" aria-labelledby="ai-viewer-title"
+        aria-hidden="true">
+        <button class="ai-viewer__backdrop" type="button" tabindex="-1"
+            aria-label="Close A.I. design viewer"></button>
+
+        <div class="ai-viewer__dialog">
+            <h2 class="sr-only" id="ai-viewer-title">A.I. generated design viewer</h2>
+
+            <button class="ai-viewer__close" type="button" aria-label="Close A.I. design viewer">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M6 6l12 12M18 6 6 18"></path>
+                </svg>
+            </button>
+
+            <figure class="ai-viewer__figure">
+                <img class="ai-viewer__image" src="" alt="">
+                <figcaption class="ai-viewer__caption" data-ai-viewer-caption></figcaption>
+            </figure>
+        </div>
+    </div>
 
     <div class="social-lightbox" role="dialog" aria-modal="true" aria-labelledby="social-lightbox-title"
         aria-hidden="true">
@@ -481,106 +514,22 @@
                         </div>
 
                         <div class="print-banner3d" aria-hidden="true">
-                            <div class="print-model-box print-banner3d__panel">
-                                <span class="print-model-box__face print-model-box__face--front">
-                                    <img src="static/media/images/0fde0c3d-ccfb-47b6-8f83-031fdc73c57c.png" alt=""
-                                        draggable="false">
-                                </span>
-                                <span class="print-model-box__face print-model-box__face--back">
-                                    <img src="static/media/images/0fde0c3d-ccfb-47b6-8f83-031fdc73c57c.png" alt=""
-                                        draggable="false">
-                                </span>
-                                <span class="print-model-box__face print-model-box__face--right"></span>
-                                <span class="print-model-box__face print-model-box__face--left"></span>
-                                <span class="print-model-box__face print-model-box__face--top"></span>
-                                <span class="print-model-box__face print-model-box__face--bottom"></span>
-                            </div>
-
-                            <div class="print-model-box print-banner3d__rail">
-                                <span class="print-model-box__face print-model-box__face--front"></span>
-                                <span class="print-model-box__face print-model-box__face--back"></span>
-                                <span class="print-model-box__face print-model-box__face--right"></span>
-                                <span class="print-model-box__face print-model-box__face--left"></span>
-                                <span class="print-model-box__face print-model-box__face--top"></span>
-                                <span class="print-model-box__face print-model-box__face--bottom"></span>
-                            </div>
-
-                            <div class="print-model-box print-banner3d__base">
-                                <span class="print-model-box__face print-model-box__face--front"></span>
-                                <span class="print-model-box__face print-model-box__face--back"></span>
-                                <span class="print-model-box__face print-model-box__face--right"></span>
-                                <span class="print-model-box__face print-model-box__face--left"></span>
-                                <span class="print-model-box__face print-model-box__face--top"></span>
-                                <span class="print-model-box__face print-model-box__face--bottom"></span>
-                            </div>
-
-                            <div class="print-model-box print-banner3d__foot print-banner3d__foot--left">
-                                <span class="print-model-box__face print-model-box__face--front"></span>
-                                <span class="print-model-box__face print-model-box__face--back"></span>
-                                <span class="print-model-box__face print-model-box__face--right"></span>
-                                <span class="print-model-box__face print-model-box__face--left"></span>
-                                <span class="print-model-box__face print-model-box__face--top"></span>
-                                <span class="print-model-box__face print-model-box__face--bottom"></span>
-                            </div>
-
-                            <div class="print-model-box print-banner3d__foot print-banner3d__foot--right">
-                                <span class="print-model-box__face print-model-box__face--front"></span>
-                                <span class="print-model-box__face print-model-box__face--back"></span>
-                                <span class="print-model-box__face print-model-box__face--right"></span>
-                                <span class="print-model-box__face print-model-box__face--left"></span>
-                                <span class="print-model-box__face print-model-box__face--top"></span>
-                                <span class="print-model-box__face print-model-box__face--bottom"></span>
-                            </div>
-
+                            <img class="print-cutout3d__art print-cutout3d__art--front"
+                                src="static/media/images/print-marketing-materials/roll-up-banner/solar-pv-roll-up-banner.png"
+                                alt="" draggable="false">
+                            <img class="print-cutout3d__art print-cutout3d__art--back"
+                                src="static/media/images/print-marketing-materials/roll-up-banner/solar-pv-roll-up-banner.png"
+                                alt="" draggable="false">
                             <span class="print-banner3d__shadow"></span>
                         </div>
 
                         <div class="print-booth3d" aria-hidden="true">
-                            <div class="print-model-box print-booth3d__body print-booth3d__body--left">
-                                <span class="print-model-box__face print-model-box__face--front"></span>
-                                <span class="print-model-box__face print-model-box__face--back"></span>
-                                <span class="print-model-box__face print-model-box__face--right"></span>
-                                <span class="print-model-box__face print-model-box__face--left"></span>
-                                <span class="print-model-box__face print-model-box__face--top"></span>
-                                <span class="print-model-box__face print-model-box__face--bottom"></span>
-                            </div>
-
-                            <div class="print-model-box print-booth3d__body print-booth3d__body--center">
-                                <span class="print-model-box__face print-model-box__face--front"></span>
-                                <span class="print-model-box__face print-model-box__face--back"></span>
-                                <span class="print-model-box__face print-model-box__face--right"></span>
-                                <span class="print-model-box__face print-model-box__face--left"></span>
-                                <span class="print-model-box__face print-model-box__face--top"></span>
-                                <span class="print-model-box__face print-model-box__face--bottom"></span>
-                            </div>
-
-                            <div class="print-model-box print-booth3d__body print-booth3d__body--right">
-                                <span class="print-model-box__face print-model-box__face--front"></span>
-                                <span class="print-model-box__face print-model-box__face--back"></span>
-                                <span class="print-model-box__face print-model-box__face--right"></span>
-                                <span class="print-model-box__face print-model-box__face--left"></span>
-                                <span class="print-model-box__face print-model-box__face--top"></span>
-                                <span class="print-model-box__face print-model-box__face--bottom"></span>
-                            </div>
-
-                            <div class="print-model-box print-booth3d__header">
-                                <span class="print-model-box__face print-model-box__face--front"></span>
-                                <span class="print-model-box__face print-model-box__face--back"></span>
-                                <span class="print-model-box__face print-model-box__face--right"></span>
-                                <span class="print-model-box__face print-model-box__face--left"></span>
-                                <span class="print-model-box__face print-model-box__face--top"></span>
-                                <span class="print-model-box__face print-model-box__face--bottom"></span>
-                            </div>
-
-                            <span class="print-booth3d__pole print-booth3d__pole--one"></span>
-                            <span class="print-booth3d__pole print-booth3d__pole--two"></span>
-                            <span class="print-booth3d__pole print-booth3d__pole--three"></span>
-                            <span class="print-booth3d__pole print-booth3d__pole--four"></span>
-
-                            <img class="print-booth3d__art print-booth3d__art--front"
-                                src="static/media/images/FOR ACTUAL MODEL BOOTH (1).png" alt="" draggable="false">
-                            <img class="print-booth3d__art print-booth3d__art--back"
-                                src="static/media/images/FOR ACTUAL MODEL BOOTH (1).png" alt="" draggable="false">
+                            <img class="print-cutout3d__art print-cutout3d__art--front"
+                                src="static/media/images/print-marketing-materials/booth/exhibition-booth-front.png"
+                                alt="" draggable="false">
+                            <img class="print-cutout3d__art print-cutout3d__art--back"
+                                src="static/media/images/print-marketing-materials/booth/exhibition-booth-back.png"
+                                alt="" draggable="false">
                             <span class="print-booth3d__shadow"></span>
                         </div>
                     </div>
@@ -599,8 +548,10 @@
         </div>
     </div>
 
-    <script src="static/js/print-3d.bundle.js"></script>
-    <script src="static/js/main.js"></script>
+    <script src="static/js/print-3d.bundle.js?v=1.0.15"></script>
+    <script src="static/media/images/social-media-designs/gallery-data.js?v=1.0.16"></script>
+    <script src="static/media/images/AI_generated_design/gallery-data.js?v=1.0.21"></script>
+    <script src="static/js/main.js?v=1.0.25"></script>
 </body>
 
 </html>

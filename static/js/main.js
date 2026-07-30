@@ -13,9 +13,13 @@ const aboutCopy = document.querySelector(".about-section__copy");
 const educationSection = document.querySelector(".education-section");
 const educationTimeline = document.querySelector(".education-timeline");
 const educationTimelineItems = [...document.querySelectorAll(".education-timeline__item")];
+const educationExitCue = document.querySelector("[data-education-exit-cue]");
+const educationExitMessage = document.querySelector("[data-education-exit-message]");
 const socialSection = document.querySelector(".social-section");
-const socialSlides = [...document.querySelectorAll(".social-carousel__slide")];
-const socialFilterButtons = [...document.querySelectorAll("[data-social-filter]")];
+const socialFilters = document.querySelector("[data-social-filters]");
+const socialCarouselStage = document.querySelector(".social-carousel__stage");
+let socialSlides = [];
+let socialFilterButtons = [];
 const socialPreviousButton = document.querySelector(".social-carousel__control--previous");
 const socialNextButton = document.querySelector(".social-carousel__control--next");
 const socialCurrentNumber = document.querySelector("[data-social-current]");
@@ -42,6 +46,14 @@ const printViewerBack = document.querySelector(".print-viewer__image--back");
 const printViewerClose = document.querySelector(".print-viewer__close");
 const printViewerBackdrop = document.querySelector(".print-viewer__backdrop");
 const printViewerReset = document.querySelector(".print-viewer__reset");
+const aiSection = document.querySelector(".ai-section");
+const aiAmbient = document.querySelector("[data-ai-ambient]");
+const aiGallery = document.querySelector("[data-ai-gallery]");
+const aiGalleryStatus = document.querySelector("[data-ai-gallery-status]");
+const aiViewer = document.querySelector(".ai-viewer");
+const aiViewerImage = document.querySelector(".ai-viewer__image");
+const aiViewerCaption = document.querySelector("[data-ai-viewer-caption]");
+const aiViewerClose = document.querySelector(".ai-viewer__close");
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 let lastTypedCharacter = null;
 let aboutRevealFrame = null;
@@ -50,6 +62,13 @@ let educationLineProgress = 0;
 let socialRevealFrame = null;
 let socialActiveIndex = 0;
 let socialActiveCategory = "all";
+let socialDragPointerId = null;
+let socialDragStartX = 0;
+let socialDragStartY = 0;
+let socialDragStartIndex = 0;
+let socialDragStepDistance = 1;
+let socialDragAxis = null;
+let socialDragSuppressClick = false;
 let socialLightboxIndex = 0;
 let socialLightboxOpener = null;
 let printViewerOpener = null;
@@ -61,14 +80,35 @@ let printDragStartX = 0;
 let printDragStartY = 0;
 let printDragStartRotationX = 0;
 let printDragStartRotationY = 0;
+let aiImages = [];
+let aiViewerOpener = null;
+let aiViewerAnimation = null;
+let aiViewerCloseTimer = null;
+let aiGalleryResizeObserver = null;
+let aiFloatImageDeck = [];
+let aiFloatSequenceToken = 0;
+let aiFloatResizeTimer = null;
+const aiCardEntries = new WeakMap();
+const aiFloatSequenceTimers = new Set();
+const aiFloatCardStates = new Map();
 const educationRevealTimers = new Set();
 let wheelDelta = 0;
 let wheelResetTimer = null;
 let pageNavigationLocked = false;
+let educationExitArmed = false;
+let educationExitDirection = 0;
+let educationExitConfirmationReady = false;
+let educationExitConfirmationGestureActive = false;
+let educationExitGestureTimer = null;
 
 const WHEEL_NAVIGATION_THRESHOLD = 40;
 const PAGE_NAVIGATION_LOCK_MS = 650;
+const EDUCATION_EXIT_GESTURE_PAUSE_MS = 220;
 const EDUCATION_REVEAL_POINT = 0.68;
+const SOCIAL_DRAG_INTENT_THRESHOLD = 7;
+const SOCIAL_GALLERY_MANIFEST_URL = "static/media/images/social-media-designs/gallery.json";
+const AI_GALLERY_MANIFEST_URL = "static/media/images/AI_generated_design/gallery.json";
+const AI_FLOAT_FADE_MS = 760;
 
 if (printViewerCanvas) {
     try {
@@ -140,7 +180,8 @@ const pageTitles = {
     "about-me": "About Me | Jerome Balangue",
     education: "Education | Jerome Balangue",
     "social-media-design": "Social Media Designs | Jerome Balangue",
-    "print-marketing-materials": "Print & Marketing Materials | Jerome Balangue"
+    "print-marketing-materials": "Print & Marketing Materials | Jerome Balangue",
+    "ai-generated-design": "A.I. Generated Design | Jerome Balangue"
 };
 const cleanPageUrl = `${window.location.pathname}${window.location.search}`;
 const PAGE_SCROLL_EDGE_TOLERANCE = 1;
@@ -247,6 +288,85 @@ const scheduleEducationTimelineUpdate = () => {
     educationTimelineFrame = window.requestAnimationFrame(updateEducationTimeline);
 };
 
+const isEducationAtEnd = () => {
+    if (!educationSection) return false;
+    const scrollLimit = getPageScrollLimit(educationSection);
+    return educationSection.scrollTop >= scrollLimit - PAGE_SCROLL_EDGE_TOLERANCE;
+};
+
+const isEducationAtStart = () => (
+    Boolean(educationSection)
+    && educationSection.scrollTop <= PAGE_SCROLL_EDGE_TOLERANCE
+);
+
+const isEducationAtExitEdge = (direction) => (
+    direction < 0 ? isEducationAtStart() : direction > 0 && isEducationAtEnd()
+);
+
+const clearEducationExitGestureTimer = () => {
+    if (educationExitGestureTimer === null) return;
+    window.clearTimeout(educationExitGestureTimer);
+    educationExitGestureTimer = null;
+};
+
+const scheduleEducationExitConfirmation = () => {
+    clearEducationExitGestureTimer();
+    educationExitGestureTimer = window.setTimeout(() => {
+        educationExitGestureTimer = null;
+        educationExitConfirmationGestureActive = false;
+        educationExitConfirmationReady = educationExitArmed
+            && document.body.dataset.page === "education"
+            && isEducationAtExitEdge(educationExitDirection);
+    }, EDUCATION_EXIT_GESTURE_PAUSE_MS);
+};
+
+const setEducationExitArmed = (direction = 0) => {
+    const normalizedDirection = Math.sign(direction);
+    if (normalizedDirection === 0) {
+        clearEducationExitGestureTimer();
+        educationExitArmed = false;
+        educationExitDirection = 0;
+        educationExitConfirmationReady = false;
+        educationExitConfirmationGestureActive = false;
+        educationExitCue?.classList.remove("is-visible");
+        educationExitCue?.setAttribute("aria-hidden", "true");
+        return;
+    }
+
+    if (educationExitArmed && educationExitDirection === normalizedDirection) return;
+    clearEducationExitGestureTimer();
+    educationExitArmed = true;
+    educationExitDirection = normalizedDirection;
+    educationExitConfirmationReady = false;
+    educationExitConfirmationGestureActive = false;
+    educationExitCue?.classList.toggle("is-up", normalizedDirection < 0);
+    educationExitCue?.classList.add("is-visible");
+    educationExitCue?.setAttribute("aria-hidden", "false");
+    if (educationExitMessage) {
+        educationExitMessage.textContent = normalizedDirection < 0
+            ? "Scroll up again to return to About Me."
+            : "Scroll down again to continue to Social Media Designs.";
+    }
+    scheduleEducationExitConfirmation();
+};
+
+const registerEducationExitWheel = (delta) => {
+    if (!educationExitArmed) return;
+
+    const direction = Math.sign(delta);
+    if (direction === 0) return;
+    if (direction !== educationExitDirection || !isEducationAtExitEdge(direction)) {
+        setEducationExitArmed();
+        return;
+    }
+
+    if (educationExitConfirmationReady) {
+        educationExitConfirmationReady = false;
+        educationExitConfirmationGestureActive = true;
+    }
+    scheduleEducationExitConfirmation();
+};
+
 const setEducationTimelineActive = (isActive) => {
     if (!educationTimeline) return;
 
@@ -350,15 +470,23 @@ const updateSocialCarousel = () => {
     const filteredSlides = getFilteredSocialSlides();
     const slideCount = filteredSlides.length;
 
-    if (slideCount === 0) return;
-    socialActiveIndex = ((socialActiveIndex % slideCount) + slideCount) % slideCount;
-
     socialSlides.forEach((slide) => {
         slide.dataset.position = "hidden";
         slide.setAttribute("aria-hidden", "true");
         slide.removeAttribute("aria-current");
         slide.tabIndex = -1;
     });
+
+    socialCurrentNumber.textContent = slideCount === 0
+        ? "00"
+        : String(socialActiveIndex + 1).padStart(2, "0");
+    socialTotalNumber.textContent = String(slideCount).padStart(2, "0");
+    socialPreviousButton.disabled = slideCount < 2;
+    socialNextButton.disabled = slideCount < 2;
+
+    if (slideCount === 0) return;
+    socialActiveIndex = ((socialActiveIndex % slideCount) + slideCount) % slideCount;
+    socialCurrentNumber.textContent = String(socialActiveIndex + 1).padStart(2, "0");
 
     filteredSlides.forEach((slide, index) => {
         let offset = index - socialActiveIndex;
@@ -380,8 +508,6 @@ const updateSocialCarousel = () => {
         slide.setAttribute("aria-current", position === "active" ? "true" : "false");
     });
 
-    socialCurrentNumber.textContent = String(socialActiveIndex + 1).padStart(2, "0");
-    socialTotalNumber.textContent = String(slideCount).padStart(2, "0");
 };
 
 const moveSocialCarousel = (step) => {
@@ -390,6 +516,61 @@ const moveSocialCarousel = (step) => {
 
     socialActiveIndex = (socialActiveIndex + step + slideCount) % slideCount;
     updateSocialCarousel();
+};
+
+const updateSocialCarouselDrag = (event) => {
+    if (event.pointerId !== socialDragPointerId || !socialCarouselStage) return;
+
+    const horizontalDistance = event.clientX - socialDragStartX;
+    const verticalDistance = event.clientY - socialDragStartY;
+
+    if (socialDragAxis === null) {
+        const horizontalMagnitude = Math.abs(horizontalDistance);
+        const verticalMagnitude = Math.abs(verticalDistance);
+        if (Math.max(horizontalMagnitude, verticalMagnitude) < SOCIAL_DRAG_INTENT_THRESHOLD) return;
+
+        socialDragAxis = horizontalMagnitude > verticalMagnitude ? "horizontal" : "vertical";
+        if (socialDragAxis === "horizontal") {
+            socialCarouselStage.classList.add("is-dragging");
+            socialCarouselStage.setPointerCapture(event.pointerId);
+        }
+    }
+
+    if (socialDragAxis !== "horizontal") return;
+
+    event.preventDefault();
+    const slideCount = getFilteredSocialSlides().length;
+    const traversedSlides = Math.round(-horizontalDistance / socialDragStepDistance);
+    const targetIndex = (
+        (socialDragStartIndex + traversedSlides) % slideCount + slideCount
+    ) % slideCount;
+    const remainingOffset = horizontalDistance + traversedSlides * socialDragStepDistance;
+
+    if (targetIndex !== socialActiveIndex) {
+        socialActiveIndex = targetIndex;
+        updateSocialCarousel();
+    }
+    socialCarouselStage.style.setProperty("--social-drag-offset", `${remainingOffset}px`);
+};
+
+const finishSocialCarouselDrag = (event) => {
+    if (event.pointerId !== socialDragPointerId || !socialCarouselStage) return;
+
+    const wasHorizontalDrag = socialDragAxis === "horizontal";
+    if (socialCarouselStage.hasPointerCapture(event.pointerId)) {
+        socialCarouselStage.releasePointerCapture(event.pointerId);
+    }
+    socialCarouselStage.classList.remove("is-dragging");
+    socialCarouselStage.style.removeProperty("--social-drag-offset");
+    socialDragPointerId = null;
+    socialDragAxis = null;
+
+    if (wasHorizontalDrag) {
+        socialDragSuppressClick = true;
+        window.setTimeout(() => {
+            socialDragSuppressClick = false;
+        }, 0);
+    }
 };
 
 const setSocialGalleryActive = (isActive) => {
@@ -424,7 +605,8 @@ const isPrintViewerOpen = () => printViewer?.classList.contains("is-open");
 const getPrintDefaultRotation = (kind) => ({
     banner: { x: -5, y: -18 },
     card: { x: -13, y: -24 },
-    gift: { x: -10, y: -20 },
+    notebook: { x: 0, y: 0 },
+    pen: { x: -6, y: -14 },
     booth: { x: -7, y: -17 },
     flyer: { x: -12, y: -23 }
 }[kind] || { x: -8, y: -18 });
@@ -495,6 +677,7 @@ const openPrintViewer = (printObject) => {
     const title = printObject.dataset.printTitle || "Print material";
     const frontSource = printObject.dataset.printImage;
     const backSource = printObject.dataset.printBack || frontSource;
+    const textureSource = printObject.dataset.printTexture || frontSource;
     const kind = printObject.dataset.printKind || "card";
 
     closeSocialLightbox();
@@ -505,9 +688,10 @@ const openPrintViewer = (printObject) => {
     printViewerBack.src = backSource;
     printViewerBack.alt = `${title}, reverse view`;
     printViewerModel.dataset.kind = kind;
-    const useWebGLModel = ["banner", "booth"].includes(kind) && printWebGLViewer?.isReady;
+    const useWebGLModel = ["banner", "notebook", "pen", "booth"].includes(kind)
+        && printWebGLViewer?.isReady;
     printViewer.classList.toggle("is-webgl-model", Boolean(useWebGLModel));
-    if (useWebGLModel) printWebGLViewer.setModel(kind, frontSource);
+    if (useWebGLModel) printWebGLViewer.setModel(kind, textureSource, backSource);
     printViewerRotator.setAttribute(
         "aria-label",
         `Draggable 3D model of ${title}`
@@ -552,8 +736,655 @@ const setPrintShowcaseActive = (isActive) => {
     printSection.classList.add("is-print-ready");
 };
 
+const getAIFloatPlacementZones = () => {
+    if (window.innerWidth <= 720) {
+        return [
+            { x: 17, y: 14 },
+            { x: 80, y: 16 },
+            { x: 15, y: 82 },
+            { x: 78, y: 83 },
+            { x: 48, y: 91 }
+        ];
+    }
+
+    if (window.innerWidth <= 940) {
+        return [
+            { x: 12, y: 18 },
+            { x: 34, y: 11 },
+            { x: 70, y: 12 },
+            { x: 91, y: 25 },
+            { x: 12, y: 72 },
+            { x: 35, y: 87 },
+            { x: 72, y: 86 },
+            { x: 91, y: 69 }
+        ];
+    }
+
+    return [
+        { x: 11, y: 19 },
+        { x: 25, y: 10 },
+        { x: 49, y: 9 },
+        { x: 74, y: 11 },
+        { x: 91, y: 24 },
+        { x: 10, y: 65 },
+        { x: 25, y: 84 },
+        { x: 49, y: 90 },
+        { x: 73, y: 85 },
+        { x: 91, y: 69 }
+    ];
+};
+
+const getAIFloatCardCount = () => {
+    if (aiImages.length === 0) return 0;
+    const desiredCount = window.innerWidth <= 720 ? 2 : window.innerWidth <= 940 ? 3 : 4;
+    const uniqueRotationLimit = aiImages.length > 1 ? aiImages.length - 1 : 1;
+    return Math.min(desiredCount, uniqueRotationLimit);
+};
+
+const shuffleAIFloatImages = (images) => {
+    const shuffled = [...images];
+    for (let index = shuffled.length - 1; index > 0; index -= 1) {
+        const randomIndex = Math.floor(Math.random() * (index + 1));
+        [shuffled[index], shuffled[randomIndex]] = [shuffled[randomIndex], shuffled[index]];
+    }
+    return shuffled;
+};
+
+const takeNextAIFloatImage = (excludedSources = new Set(), previousSource = "") => {
+    if (aiImages.length === 0) return null;
+    if (aiFloatImageDeck.length === 0) aiFloatImageDeck = shuffleAIFloatImages(aiImages);
+
+    const findCandidateIndex = (avoidPrevious) => aiFloatImageDeck.findIndex((image) => (
+        !excludedSources.has(image.src)
+        && (!avoidPrevious || image.src !== previousSource)
+    ));
+
+    let candidateIndex = findCandidateIndex(true);
+    if (candidateIndex < 0) {
+        aiFloatImageDeck.push(...shuffleAIFloatImages(aiImages));
+        candidateIndex = findCandidateIndex(true);
+    }
+    if (candidateIndex < 0) candidateIndex = findCandidateIndex(false);
+    if (candidateIndex < 0) return null;
+    return aiFloatImageDeck.splice(candidateIndex, 1)[0];
+};
+
+const scheduleAIFloatTask = (callback, delay) => {
+    const timer = window.setTimeout(() => {
+        aiFloatSequenceTimers.delete(timer);
+        callback();
+    }, delay);
+    aiFloatSequenceTimers.add(timer);
+    return timer;
+};
+
+const clearAIFloatSequence = () => {
+    aiFloatSequenceToken += 1;
+    aiFloatSequenceTimers.forEach((timer) => window.clearTimeout(timer));
+    aiFloatSequenceTimers.clear();
+    aiFloatCardStates.forEach((state) => {
+        if (state.timer !== null) window.clearTimeout(state.timer);
+    });
+    aiFloatCardStates.clear();
+    aiFloatImageDeck = [];
+    aiAmbient?.replaceChildren();
+    aiAmbient?.classList.remove("has-focus");
+};
+
+const syncAIFloatFocus = () => {
+    const hasFocusedCard = [...aiFloatCardStates.values()].some((state) => (
+        state.pauseReasons.has("hover") || state.pauseReasons.has("focus")
+    ));
+    aiAmbient?.classList.toggle("has-focus", hasFocusedCard);
+};
+
+const scheduleAIFloatRetirement = (card) => {
+    const state = aiFloatCardStates.get(card);
+    if (!state || state.phase !== "visible" || state.pauseReasons.size > 0 || reducedMotion.matches) {
+        return;
+    }
+
+    if (state.timer !== null) window.clearTimeout(state.timer);
+    state.startedAt = performance.now();
+    state.timer = window.setTimeout(() => {
+        state.timer = null;
+        retireAIFloatCard(card);
+    }, Math.max(120, state.remaining));
+};
+
+const pauseAIFloatCard = (card, reason) => {
+    const state = aiFloatCardStates.get(card);
+    if (!state || state.pauseReasons.has(reason)) return;
+
+    state.pauseReasons.add(reason);
+    if (state.timer !== null) {
+        window.clearTimeout(state.timer);
+        state.timer = null;
+        state.remaining = Math.max(120, state.remaining - (performance.now() - state.startedAt));
+    }
+    if (reason === "hover" || reason === "focus") card.classList.add("is-focused");
+    syncAIFloatFocus();
+};
+
+const resumeAIFloatCard = (card, reason) => {
+    const state = aiFloatCardStates.get(card);
+    if (!state) return;
+
+    state.pauseReasons.delete(reason);
+    if (!state.pauseReasons.has("hover") && !state.pauseReasons.has("focus")) {
+        card.classList.remove("is-focused");
+    }
+    syncAIFloatFocus();
+    scheduleAIFloatRetirement(card);
+};
+
+const pauseAllAIFloatCards = (reason) => {
+    aiFloatCardStates.forEach((state, card) => pauseAIFloatCard(card, reason));
+};
+
+const resumeAllAIFloatCards = (reason) => {
+    aiFloatCardStates.forEach((state, card) => resumeAIFloatCard(card, reason));
+};
+
+const assignAIFloatPlacement = (card) => {
+    const state = aiFloatCardStates.get(card);
+    if (!state) return;
+
+    const zones = getAIFloatPlacementZones();
+    const occupiedZones = new Set(
+        [...aiFloatCardStates.entries()]
+            .filter(([otherCard]) => otherCard !== card)
+            .map(([, otherState]) => otherState.zoneIndex)
+    );
+    const availableZoneIndexes = zones
+        .map((zone, index) => index)
+        .filter((index) => !occupiedZones.has(index));
+    const zoneIndex = availableZoneIndexes.length > 0
+        ? availableZoneIndexes[Math.floor(Math.random() * availableZoneIndexes.length)]
+        : Math.floor(Math.random() * zones.length);
+    const zone = zones[zoneIndex];
+    const compact = window.innerWidth <= 720;
+    const tablet = !compact && window.innerWidth <= 940;
+    const baseWidth = compact
+        ? 64 + Math.random() * 27
+        : tablet
+            ? 74 + Math.random() * 34
+            : 88 + Math.random() * 48;
+    const driftDistance = compact
+        ? 1.4 + Math.random() * 0.9
+        : tablet
+            ? 2 + Math.random() * 1.3
+            : 2.8 + Math.random() * 2;
+    const driftDirection = Math.random() < 0.5 ? -1 : 1;
+
+    state.zoneIndex = zoneIndex;
+    state.baseWidth = baseWidth;
+    card.style.setProperty("--ai-float-x", `${zone.x + (Math.random() * 4 - 2)}%`);
+    card.style.setProperty("--ai-float-y", `${zone.y + (Math.random() * 4 - 2)}%`);
+    card.style.setProperty("--ai-float-width", `${baseWidth}px`);
+    card.style.setProperty("--ai-float-tilt", `${Math.random() * 10 - 5}deg`);
+    card.style.setProperty("--ai-float-drift-start", `${driftDistance * driftDirection * -1}rem`);
+    card.style.setProperty("--ai-float-drift-end", `${driftDistance * driftDirection}rem`);
+};
+
+const syncAIFloatAspect = (card) => {
+    const state = aiFloatCardStates.get(card);
+    const image = card.querySelector(".ai-float-card__image");
+    if (!state || !image?.naturalWidth || !image.naturalHeight) return;
+
+    const aspectRatio = image.naturalWidth / image.naturalHeight;
+    const adjustedWidth = aspectRatio > 1.2
+        ? state.baseWidth * 1.24
+        : aspectRatio < 0.72
+            ? state.baseWidth * 0.86
+            : state.baseWidth;
+    const maximumWidth = window.innerWidth <= 720 ? 102 : window.innerWidth <= 940 ? 138 : 178;
+
+    card.style.setProperty("--ai-float-aspect", `${image.naturalWidth} / ${image.naturalHeight}`);
+    card.style.setProperty("--ai-float-width", `${Math.min(maximumWidth, adjustedWidth)}px`);
+};
+
+const revealAIFloatCard = (card) => {
+    const state = aiFloatCardStates.get(card);
+    if (
+        !state
+        || state.token !== aiFloatSequenceToken
+        || document.body.dataset.page !== "ai-generated-design"
+    ) return;
+
+    syncAIFloatAspect(card);
+    state.phase = "visible";
+    state.remaining = 6200 + Math.random() * 3900;
+    card.style.setProperty(
+        "--ai-float-drift-duration",
+        `${(state.remaining + AI_FLOAT_FADE_MS) / 1000}s`
+    );
+    card.classList.remove("is-leaving");
+    window.requestAnimationFrame(() => {
+        if (!aiFloatCardStates.has(card)) return;
+        card.classList.add("is-visible");
+        scheduleAIFloatRetirement(card);
+    });
+};
+
+const setAIFloatImage = (card, entry) => {
+    const state = aiFloatCardStates.get(card);
+    const image = card.querySelector(".ai-float-card__image");
+    const caption = card.querySelector(".ai-float-card__caption");
+    const drift = card.querySelector(".ai-float-card__drift");
+    if (!state || !image || !caption || !drift || !entry) return;
+
+    state.image = entry;
+    state.phase = "loading";
+    aiCardEntries.set(card, entry);
+    card.setAttribute("aria-label", `View ${entry.alt}`);
+    caption.textContent = entry.alt;
+    assignAIFloatPlacement(card);
+    drift.style.animationName = "none";
+    void drift.offsetWidth;
+    drift.style.removeProperty("animation-name");
+    image.alt = entry.alt;
+    image.src = entry.src;
+    if (image.complete && image.naturalWidth > 0) {
+        window.queueMicrotask(() => revealAIFloatCard(card));
+    }
+};
+
+const recycleAIFloatCard = (card) => {
+    const state = aiFloatCardStates.get(card);
+    if (!state || state.token !== aiFloatSequenceToken) return;
+
+    const previousSource = state.image?.src || "";
+    const activeSources = new Set(
+        [...aiFloatCardStates.entries()]
+            .filter(([otherCard]) => otherCard !== card)
+            .map(([, otherState]) => otherState.image?.src)
+            .filter(Boolean)
+    );
+    const nextImage = takeNextAIFloatImage(activeSources, previousSource);
+    if (!nextImage) {
+        scheduleAIFloatTask(() => recycleAIFloatCard(card), 500);
+        return;
+    }
+
+    card.classList.remove("is-visible", "is-leaving", "is-focused");
+    state.pauseReasons.clear();
+    setAIFloatImage(card, nextImage);
+};
+
+function retireAIFloatCard(card) {
+    const state = aiFloatCardStates.get(card);
+    if (!state || state.phase !== "visible") return;
+    if (state.pauseReasons.size > 0) {
+        scheduleAIFloatRetirement(card);
+        return;
+    }
+
+    state.phase = "leaving";
+    card.classList.remove("is-visible");
+    card.classList.add("is-leaving");
+    scheduleAIFloatTask(() => recycleAIFloatCard(card), AI_FLOAT_FADE_MS);
+}
+
+const createAIFloatCard = (entry, token) => {
+    const card = document.createElement("button");
+    card.className = "ai-float-card";
+    card.type = "button";
+
+    const drift = document.createElement("span");
+    drift.className = "ai-float-card__drift";
+    const media = document.createElement("span");
+    media.className = "ai-float-card__media";
+    const image = document.createElement("img");
+    image.className = "ai-float-card__image";
+    image.loading = "eager";
+    image.decoding = "async";
+    image.draggable = false;
+    const caption = document.createElement("span");
+    caption.className = "ai-float-card__caption";
+    media.append(image);
+    drift.append(media, caption);
+    card.append(drift);
+
+    aiFloatCardStates.set(card, {
+        image: null,
+        timer: null,
+        remaining: 0,
+        startedAt: 0,
+        phase: "loading",
+        pauseReasons: new Set(),
+        zoneIndex: -1,
+        baseWidth: 120,
+        token
+    });
+
+    image.addEventListener("load", () => revealAIFloatCard(card));
+    card.addEventListener("mouseenter", () => pauseAIFloatCard(card, "hover"));
+    card.addEventListener("mouseleave", () => resumeAIFloatCard(card, "hover"));
+    card.addEventListener("focus", () => pauseAIFloatCard(card, "focus"));
+    card.addEventListener("blur", () => resumeAIFloatCard(card, "focus"));
+    card.addEventListener("click", () => openAIViewer(card));
+
+    aiAmbient.append(card);
+    setAIFloatImage(card, entry);
+};
+
+const startAIFloatSequence = () => {
+    if (!aiAmbient || aiImages.length === 0 || !aiSection?.classList.contains("is-active")) return;
+
+    clearAIFloatSequence();
+    const token = aiFloatSequenceToken;
+    const cardCount = getAIFloatCardCount();
+    for (let index = 0; index < cardCount; index += 1) {
+        scheduleAIFloatTask(() => {
+            if (token !== aiFloatSequenceToken) return;
+            const activeSources = new Set(
+                [...aiFloatCardStates.values()].map((state) => state.image?.src).filter(Boolean)
+            );
+            const entry = takeNextAIFloatImage(activeSources);
+            if (entry) createAIFloatCard(entry, token);
+        }, reducedMotion.matches ? 0 : 180 + index * 430);
+    }
+};
+
+const getAIAspectRatio = (entry) => {
+    const width = Number(entry?.width);
+    const height = Number(entry?.height);
+    return width > 0 && height > 0 ? width / height : 1;
+};
+
+const syncAIGalleryLayout = () => {
+    if (!aiGallery) return;
+
+    const galleryWidth = aiGallery.clientWidth;
+    const targetRowHeight = galleryWidth >= 1180
+        ? Math.min(390, Math.max(320, galleryWidth * 0.265))
+        : galleryWidth >= 760
+            ? Math.min(300, Math.max(245, galleryWidth * 0.28))
+            : galleryWidth >= 540
+                ? Math.min(245, Math.max(205, galleryWidth * 0.36))
+                : galleryWidth;
+
+    aiGallery.style.setProperty("--ai-row-height", `${Math.round(targetRowHeight)}px`);
+    aiGallery.querySelectorAll(".ai-card").forEach((card) => {
+        const aspectRatio = getAIAspectRatio(aiCardEntries.get(card));
+        card.style.flexBasis = `${Math.round(aspectRatio * targetRowHeight)}px`;
+        card.style.flexGrow = String(aspectRatio);
+    });
+};
+
+const setAICardDimensions = (card, entry, width, height) => {
+    if (!(width > 0 && height > 0)) return;
+    entry.width = width;
+    entry.height = height;
+    card.dataset.orientation = width > height ? "landscape" : width < height ? "portrait" : "square";
+    card.style.setProperty("--ai-card-aspect", `${width} / ${height}`);
+};
+
+const createAICard = (entry, index) => {
+    const card = document.createElement("button");
+    card.className = "ai-card";
+    card.type = "button";
+    card.setAttribute("aria-label", `View ${entry.alt}`);
+    card.style.setProperty("--ai-card-delay", `${Math.min(index, 8) * 65}ms`);
+
+    const media = document.createElement("span");
+    media.className = "ai-card__media";
+    const image = document.createElement("img");
+    image.className = "ai-card__image";
+    image.loading = index < 3 ? "eager" : "lazy";
+    image.decoding = "async";
+    image.draggable = false;
+    image.src = entry.src;
+    image.alt = entry.alt;
+    const caption = document.createElement("span");
+    caption.className = "ai-card__caption";
+    caption.textContent = entry.alt;
+    media.append(image);
+    card.append(media, caption);
+
+    aiCardEntries.set(card, entry);
+    if (entry.width > 0 && entry.height > 0) {
+        image.width = entry.width;
+        image.height = entry.height;
+        setAICardDimensions(card, entry, entry.width, entry.height);
+    }
+
+    const revealCard = () => {
+        setAICardDimensions(card, entry, image.naturalWidth, image.naturalHeight);
+        syncAIGalleryLayout();
+        window.requestAnimationFrame(() => card.classList.add("is-loaded"));
+    };
+    image.addEventListener("load", revealCard, { once: true });
+    if (image.complete && image.naturalWidth > 0) window.queueMicrotask(revealCard);
+    card.addEventListener("click", () => openAIViewer(card));
+
+    return card;
+};
+
+const isAIViewerOpen = () => aiViewer?.classList.contains("is-open");
+
+const animateAIViewerEntry = async (originBounds) => {
+    try {
+        await aiViewerImage.decode();
+    } catch {
+        // The load event still provides a measurable image when decode is unavailable.
+    }
+    if (
+        !isAIViewerOpen()
+        || aiViewer.classList.contains("is-closing")
+        || aiViewer.classList.contains("is-returning")
+    ) return;
+
+    if (reducedMotion.matches || !originBounds) {
+        aiViewerImage.style.opacity = "";
+        return;
+    }
+
+    const targetBounds = aiViewerImage.getBoundingClientRect();
+    if (targetBounds.width <= 0 || targetBounds.height <= 0) {
+        aiViewerImage.style.opacity = "";
+        return;
+    }
+    const translateX = originBounds.left + originBounds.width / 2
+        - (targetBounds.left + targetBounds.width / 2);
+    const translateY = originBounds.top + originBounds.height / 2
+        - (targetBounds.top + targetBounds.height / 2);
+    const scale = Math.max(
+        0.06,
+        Math.min(originBounds.width / targetBounds.width, originBounds.height / targetBounds.height)
+    );
+
+    aiViewerAnimation?.cancel();
+    aiViewerOpener?.classList.add("is-viewer-source-hidden");
+    aiViewerAnimation = aiViewerImage.animate([
+        {
+            opacity: 1,
+            filter: "blur(0)",
+            transform: `translate3d(${translateX}px, ${translateY}px, 0) scale(${scale})`
+        },
+        {
+            opacity: 1,
+            filter: "blur(0)",
+            transform: "translate3d(0, 0, 0) scale(1)"
+        }
+    ], {
+        duration: 720,
+        easing: "cubic-bezier(0.16, 1, 0.3, 1)",
+        fill: "both"
+    });
+    aiViewerImage.style.opacity = "";
+};
+
+const openAIViewer = (card) => {
+    const entry = aiCardEntries.get(card);
+    const cardImage = card.querySelector(".ai-card__image, .ai-float-card__image");
+    if (!aiViewer || !entry || !cardImage) return;
+
+    closeSocialLightbox();
+    closePrintViewer();
+    if (aiViewerCloseTimer !== null) {
+        window.clearTimeout(aiViewerCloseTimer);
+        aiViewerCloseTimer = null;
+    }
+    const originBounds = cardImage.getBoundingClientRect();
+    aiViewerOpener = card;
+    card.classList.remove("is-viewer-source-hidden");
+    card.classList.add("is-viewer-origin");
+    pauseAllAIFloatCards("viewer");
+    aiViewerImage.style.opacity = "0";
+    aiViewerImage.src = entry.src;
+    aiViewerImage.alt = entry.alt;
+    aiViewerCaption.textContent = entry.alt;
+    aiViewer.classList.remove("is-closing", "is-returning");
+    aiViewer.classList.add("is-open");
+    aiViewer.setAttribute("aria-hidden", "false");
+    document.body.classList.add("ai-viewer-open");
+    void animateAIViewerEntry(originBounds);
+    window.requestAnimationFrame(() => aiViewerClose.focus());
+};
+
+const finalizeAIViewerClose = () => {
+    if (!aiViewer || !isAIViewerOpen()) return;
+
+    const closingAnimation = aiViewerAnimation;
+    const opener = aiViewerOpener;
+    if (aiViewerCloseTimer !== null) {
+        window.clearTimeout(aiViewerCloseTimer);
+        aiViewerCloseTimer = null;
+    }
+    // Hide the complete overlay before clearing the fill-mode animation. Otherwise
+    // the enlarged image can paint for one frame and look like a close flicker.
+    aiViewer.style.visibility = "hidden";
+    aiViewer.style.opacity = "0";
+    opener?.classList.remove("is-viewer-source-hidden");
+    aiViewer.classList.remove("is-open", "is-closing", "is-returning");
+    closingAnimation?.cancel();
+    aiViewerAnimation = null;
+    aiViewer.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("ai-viewer-open");
+    aiViewerImage.style.opacity = "";
+    resumeAllAIFloatCards("viewer");
+    opener?.classList.remove("is-viewer-origin");
+
+    if (opener?.isConnected && document.body.dataset.page === "ai-generated-design") {
+        opener.focus({ preventScroll: true });
+    }
+    aiViewerOpener = null;
+    window.requestAnimationFrame(() => {
+        aiViewer.style.removeProperty("visibility");
+        aiViewer.style.removeProperty("opacity");
+    });
+};
+
+const closeAIViewer = (immediate = false) => {
+    if (!aiViewer || !isAIViewerOpen()) return;
+    if (immediate || reducedMotion.matches || !aiViewerOpener?.isConnected) {
+        finalizeAIViewerClose();
+        return;
+    }
+    if (
+        aiViewer.classList.contains("is-closing")
+        || aiViewer.classList.contains("is-returning")
+    ) return;
+
+    if (aiViewerAnimation) {
+        const returnAnimation = aiViewerAnimation;
+        aiViewer.classList.add("is-returning");
+        returnAnimation.reverse();
+        returnAnimation.finished
+            .then(() => {
+                if (aiViewerAnimation === returnAnimation) finalizeAIViewerClose();
+            })
+            .catch(() => {});
+        return;
+    }
+
+    // If the image was closed before it finished decoding, use the fade fallback.
+    aiViewer.classList.add("is-closing");
+    aiViewerCloseTimer = window.setTimeout(finalizeAIViewerClose, 200);
+};
+
+const showAIGalleryStatus = (message) => {
+    if (!aiGallery || !aiGalleryStatus) return;
+    aiGalleryStatus.textContent = message;
+    aiGallery.replaceChildren(aiGalleryStatus);
+};
+
+const renderAIGallery = (manifest) => {
+    const entries = Array.isArray(manifest?.images) ? manifest.images : [];
+    const seenSources = new Set();
+    aiImages = entries.filter((entry) => {
+        if (
+            typeof entry?.src !== "string"
+            || typeof entry?.alt !== "string"
+            || seenSources.has(entry.src)
+        ) return false;
+        seenSources.add(entry.src);
+        return true;
+    });
+    aiGallery.setAttribute("aria-busy", "false");
+
+    if (aiImages.length === 0) {
+        showAIGalleryStatus("Add images to AI_generated_design to begin the gallery.");
+        return;
+    }
+
+    const galleryFragment = document.createDocumentFragment();
+    [...aiImages]
+        .sort((left, right) => getAIAspectRatio(right) - getAIAspectRatio(left))
+        .forEach((entry, index) => galleryFragment.append(createAICard(entry, index)));
+    aiGallery.replaceChildren(galleryFragment);
+    syncAIGalleryLayout();
+
+    aiGalleryResizeObserver?.disconnect();
+    if ("ResizeObserver" in window) {
+        aiGalleryResizeObserver = new ResizeObserver(syncAIGalleryLayout);
+        aiGalleryResizeObserver.observe(aiGallery);
+    }
+    if (document.body.dataset.page === "ai-generated-design") startAIFloatSequence();
+};
+
+const loadAIGallery = async () => {
+    try {
+        if (window.AI_GALLERY_MANIFEST) {
+            renderAIGallery(window.AI_GALLERY_MANIFEST);
+            return;
+        }
+
+        const response = await fetch(AI_GALLERY_MANIFEST_URL, { cache: "no-cache" });
+        if (!response.ok) {
+            throw new Error(`AI gallery manifest request failed with status ${response.status}.`);
+        }
+        renderAIGallery(await response.json());
+    } catch (error) {
+        console.error("AI generated design gallery could not be loaded.", error);
+        aiImages = [];
+        aiGallery?.setAttribute("aria-busy", "false");
+        showAIGalleryStatus("A.I. designs could not be loaded.");
+    }
+};
+
+const setAIGalleryActive = (isActive) => {
+    if (!aiSection) return;
+
+    aiSection.classList.remove("is-ai-ready");
+    if (!isActive) {
+        closeAIViewer(true);
+        clearAIFloatSequence();
+        return;
+    }
+
+    void aiSection.offsetWidth;
+    aiSection.classList.add("is-ai-ready");
+    window.requestAnimationFrame(syncAIGalleryLayout);
+    startAIFloatSequence();
+};
+
 const showPage = (requestedPage, shouldScroll = true) => {
     const pageId = pageExists(requestedPage) ? requestedPage : "home";
+
+    setEducationExitArmed();
 
     pageViews.forEach((view) => {
         const isActive = view.dataset.page === pageId;
@@ -575,6 +1406,7 @@ const showPage = (requestedPage, shouldScroll = true) => {
     setEducationTimelineActive(pageId === "education");
     setSocialGalleryActive(pageId === "social-media-design");
     setPrintShowcaseActive(pageId === "print-marketing-materials");
+    setAIGalleryActive(pageId === "ai-generated-design");
 
     document.body.dataset.page = pageId;
     document.title = pageTitles[pageId] || pageTitles.home;
@@ -675,7 +1507,7 @@ pageLinks.forEach((link) => {
     });
 });
 
-socialFilterButtons.forEach((button) => {
+const bindSocialFilterButton = (button) => {
     button.addEventListener("click", () => {
         closeSocialLightbox();
         socialActiveCategory = button.dataset.socialFilter;
@@ -689,9 +1521,9 @@ socialFilterButtons.forEach((button) => {
 
         updateSocialCarousel();
     });
-});
+};
 
-socialSlides.forEach((slide) => {
+const bindSocialSlide = (slide) => {
     const image = slide.querySelector("img");
     if (image.complete) {
         syncSocialSlideAspect(slide);
@@ -712,14 +1544,165 @@ socialSlides.forEach((slide) => {
         socialActiveIndex = selectedIndex;
         updateSocialCarousel();
     });
-});
+};
+
+const showSocialGalleryStatus = (message) => {
+    const status = document.createElement("p");
+    status.className = "social-carousel__status";
+    status.setAttribute("role", "status");
+    status.dataset.socialGalleryStatus = "";
+    status.textContent = message;
+    socialCarouselStage.replaceChildren(status);
+};
+
+const renderSocialGallery = (manifest) => {
+    if (!Array.isArray(manifest?.categories)) {
+        throw new Error("The social gallery manifest has no categories array.");
+    }
+
+    const categories = manifest.categories.filter((category) => (
+        typeof category?.id === "string" &&
+        typeof category?.name === "string" &&
+        Array.isArray(category?.images) &&
+        category.images.length > 0
+    ));
+    if (categories.length === 0) throw new Error("The social gallery has no category images.");
+
+    const filterFragment = document.createDocumentFragment();
+    [{ id: "all", name: "All" }, ...categories].forEach((category, index) => {
+        const button = document.createElement("button");
+        button.className = "social-filters__button";
+        button.classList.toggle("is-active", index === 0);
+        button.type = "button";
+        button.dataset.socialFilter = category.id;
+        button.setAttribute("aria-pressed", String(index === 0));
+        button.textContent = category.name;
+        filterFragment.append(button);
+    });
+    socialFilters.replaceChildren(filterFragment);
+    socialFilterButtons = [...socialFilters.querySelectorAll("[data-social-filter]")];
+    socialFilterButtons.forEach(bindSocialFilterButton);
+
+    const slideFragment = document.createDocumentFragment();
+    categories.forEach((category) => {
+        category.images.forEach((entry) => {
+            if (typeof entry?.src !== "string") return;
+
+            const label = typeof entry.alt === "string" && entry.alt.trim()
+                ? entry.alt.trim()
+                : "Social media design";
+            const slide = document.createElement("button");
+            slide.className = "social-carousel__slide";
+            slide.type = "button";
+            slide.dataset.socialCategory = category.id;
+            slide.setAttribute("aria-label", `View ${label}`);
+
+            const image = document.createElement("img");
+            image.src = entry.src;
+            image.alt = label;
+            image.loading = "lazy";
+            image.decoding = "async";
+            image.draggable = false;
+            slide.append(image);
+            slideFragment.append(slide);
+        });
+    });
+
+    socialCarouselStage.replaceChildren(slideFragment);
+    socialSlides = [...socialCarouselStage.querySelectorAll(".social-carousel__slide")];
+    socialSlides.forEach(bindSocialSlide);
+    socialActiveCategory = "all";
+    socialActiveIndex = 0;
+    socialFilters.setAttribute("aria-busy", "false");
+    socialCarouselStage.setAttribute("aria-busy", "false");
+    updateSocialCarousel();
+
+    if (document.body.dataset.page === "social-media-design") {
+        setSocialGalleryActive(true);
+    }
+};
+
+const loadSocialGallery = async () => {
+    try {
+        if (window.SOCIAL_GALLERY_MANIFEST) {
+            renderSocialGallery(window.SOCIAL_GALLERY_MANIFEST);
+            return;
+        }
+
+        const response = await fetch(SOCIAL_GALLERY_MANIFEST_URL, { cache: "no-cache" });
+        if (!response.ok) {
+            throw new Error(`Gallery manifest request failed with status ${response.status}.`);
+        }
+        renderSocialGallery(await response.json());
+    } catch (error) {
+        console.error("Social media gallery could not be loaded.", error);
+        socialSlides = [];
+        socialFilterButtons = [];
+        socialFilters.replaceChildren();
+        socialFilters.setAttribute("aria-busy", "false");
+        socialCarouselStage.setAttribute("aria-busy", "false");
+        showSocialGalleryStatus("Designs could not be loaded.");
+        updateSocialCarousel();
+    }
+};
+
+void loadSocialGallery();
+void loadAIGallery();
 
 socialPreviousButton?.addEventListener("click", () => moveSocialCarousel(-1));
 socialNextButton?.addEventListener("click", () => moveSocialCarousel(1));
+socialCarouselStage?.addEventListener("pointerdown", (event) => {
+    if (
+        event.button !== 0 ||
+        event.isPrimary === false ||
+        socialDragPointerId !== null ||
+        getFilteredSocialSlides().length < 2
+    ) return;
+
+    socialDragPointerId = event.pointerId;
+    socialDragStartX = event.clientX;
+    socialDragStartY = event.clientY;
+    socialDragStartIndex = socialActiveIndex;
+    const fallbackStepDistance = Math.min(
+        160,
+        Math.max(112, socialCarouselStage.clientWidth * 0.16)
+    );
+    const activeSlide = socialCarouselStage.querySelector('[data-position="active"]');
+    const adjacentSlide = socialCarouselStage.querySelector('[data-position="next"]');
+    if (activeSlide && adjacentSlide) {
+        const activeBounds = activeSlide.getBoundingClientRect();
+        const adjacentBounds = adjacentSlide.getBoundingClientRect();
+        const activeCenter = activeBounds.left + activeBounds.width / 2;
+        const adjacentCenter = adjacentBounds.left + adjacentBounds.width / 2;
+        const measuredStepDistance = Math.abs(adjacentCenter - activeCenter);
+        socialDragStepDistance = measuredStepDistance >= 72
+            ? measuredStepDistance
+            : fallbackStepDistance;
+    } else {
+        socialDragStepDistance = fallbackStepDistance;
+    }
+    socialDragAxis = null;
+});
+socialCarouselStage?.addEventListener("pointermove", updateSocialCarouselDrag);
+socialCarouselStage?.addEventListener("click", (event) => {
+    if (!socialDragSuppressClick) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    socialDragSuppressClick = false;
+}, true);
+window.addEventListener("pointerup", (event) => finishSocialCarouselDrag(event));
+window.addEventListener("pointercancel", finishSocialCarouselDrag);
 socialLightboxClose?.addEventListener("click", closeSocialLightbox);
 socialLightboxBackdrop?.addEventListener("click", closeSocialLightbox);
 socialLightboxPrevious?.addEventListener("click", () => moveSocialLightbox(-1));
 socialLightboxNext?.addEventListener("click", () => moveSocialLightbox(1));
+aiViewerClose?.addEventListener("click", () => closeAIViewer());
+aiViewer?.addEventListener("click", (event) => {
+    if (!(event.target instanceof Element)) return;
+    if (event.target.closest(".ai-viewer__image, .ai-viewer__close")) return;
+    closeAIViewer();
+});
 
 printObjects.forEach((printObject) => {
     printObject.addEventListener("click", () => openPrintViewer(printObject));
@@ -771,7 +1754,7 @@ printViewerRotator?.addEventListener("pointercancel", stopPrintViewerDrag);
 
 document.addEventListener("wheel", (event) => {
     if (event.ctrlKey) return;
-    if (isSocialLightboxOpen() || isPrintViewerOpen()) {
+    if (isSocialLightboxOpen() || isPrintViewerOpen() || isAIViewerOpen()) {
         event.preventDefault();
         return;
     }
@@ -790,10 +1773,17 @@ document.addEventListener("wheel", (event) => {
             ? window.innerHeight
             : 1;
     const normalizedDelta = event.deltaY * deltaMultiplier;
+    const isEducationPage = document.body.dataset.page === "education";
+
+    if (isEducationPage) registerEducationExitWheel(normalizedDelta);
 
     if (scrollActivePage(normalizedDelta)) {
         wheelDelta = 0;
         window.clearTimeout(wheelResetTimer);
+        const educationScrollDirection = Math.sign(normalizedDelta);
+        if (isEducationPage && isEducationAtExitEdge(educationScrollDirection)) {
+            setEducationExitArmed(educationScrollDirection);
+        }
         return;
     }
 
@@ -807,6 +1797,16 @@ document.addEventListener("wheel", (event) => {
 
     const direction = Math.sign(wheelDelta);
     wheelDelta = 0;
+
+    if (isEducationPage && isEducationAtExitEdge(direction)) {
+        if (!educationExitArmed || educationExitDirection !== direction) {
+            setEducationExitArmed(direction);
+            return;
+        }
+        if (!educationExitConfirmationGestureActive) return;
+        setEducationExitArmed();
+    }
+
     navigateByStep(direction);
 }, { passive: false });
 
@@ -815,6 +1815,25 @@ window.addEventListener("popstate", (event) => {
 });
 
 document.addEventListener("keydown", (event) => {
+    if (isAIViewerOpen()) {
+        if (event.key === "Tab") {
+            event.preventDefault();
+            aiViewerClose.focus();
+            return;
+        }
+
+        if (event.key === "Escape") {
+            event.preventDefault();
+            closeAIViewer();
+            return;
+        }
+
+        if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "PageUp", "PageDown"].includes(event.key)) {
+            event.preventDefault();
+            return;
+        }
+    }
+
     if (isPrintViewerOpen()) {
         if (event.key === "Tab") {
             const viewerControls = [
@@ -942,14 +1961,32 @@ document.addEventListener("keydown", (event) => {
 });
 
 mobileSidebar.addEventListener("change", syncSidebarAvailability);
-educationSection?.addEventListener("scroll", scheduleEducationTimelineUpdate, { passive: true });
+educationSection?.addEventListener("scroll", () => {
+    scheduleEducationTimelineUpdate();
+    if (educationExitArmed && !isEducationAtExitEdge(educationExitDirection)) {
+        setEducationExitArmed();
+    }
+}, { passive: true });
 window.addEventListener("resize", () => {
     if (isPrintViewerOpen()) syncPrintViewerSize();
+    syncAIGalleryLayout();
+    if (document.body.dataset.page === "ai-generated-design" && !isAIViewerOpen()) {
+        window.clearTimeout(aiFloatResizeTimer);
+        aiFloatResizeTimer = window.setTimeout(startAIFloatSequence, 180);
+    }
 });
 reducedMotion.addEventListener("change", () => {
     setEducationTimelineActive(document.body.dataset.page === "education");
     setSocialGalleryActive(document.body.dataset.page === "social-media-design");
     setPrintShowcaseActive(document.body.dataset.page === "print-marketing-materials");
+    setAIGalleryActive(document.body.dataset.page === "ai-generated-design");
+});
+document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+        pauseAllAIFloatCards("visibility");
+    } else {
+        resumeAllAIFloatCards("visibility");
+    }
 });
 updateSocialCarousel();
 const initialPage = window.location.hash.slice(1) || "home";

@@ -18,8 +18,22 @@ static/
     *.woff2                 Self-hosted font files
     OFL-*.txt               Font licenses
   media/
-    images/                 Portfolio images
-    textures/               Cropped artwork used by 3D models
+    images/                 Single root for every image asset
+      site/                 Shared backgrounds
+      home/                 Home page images
+      about/                About page images
+      social-media-designs/ Folder-driven Social Media Designs gallery
+        --Category Name--/  Images assigned to this category
+        gallery.json        Generated gallery manifest
+        gallery-data.js     Direct-file-compatible browser data
+      AI_generated_design/  Randomized floating A.I. design gallery
+        gallery.json        Generated A.I. gallery manifest
+        gallery-data.js     Direct-file-compatible A.I. gallery data
+      print-marketing-materials/
+                             Print assets grouped by material
+      source-assets/        Labeled source/reference images
+      archive/              Organized images not shown on the live pages
+    archives/               Non-image source archives
     videos/                 Portfolio videos
   vendor/
     three/                  Local Three.js library and license
@@ -27,3 +41,53 @@ static/
 
 The site does not depend on Bootstrap, jQuery, a CDN, or remote JavaScript.
 Google Fonts were downloaded and are served locally from `static/fonts`.
+
+## Social Media Designs categories
+
+The Social Media Designs page builds its filters and carousel from folders inside
+`static/media/images/social-media-designs`. Category folders must use this exact pattern:
+
+```text
+--Category Name--
+```
+
+For example, adding images to `--Brand Identity--` creates a **Brand Identity**
+filter and places those images in that category. Supported image types are AVIF,
+GIF, JPEG, PNG, SVG, and WebP. Empty category folders are not displayed.
+
+After changing the folders locally, regenerate the static manifest:
+
+```powershell
+node scripts/generate-social-gallery.mjs
+```
+
+Both generated files are required. `gallery-data.js` lets the gallery work when
+`index.html` is opened directly from the filesystem, while `gallery.json` remains
+the hosted fallback.
+
+Pushing a category-folder or image change to `main` also runs
+`.github/workflows/sync-social-gallery.yml`, which regenerates and commits the
+manifest automatically. The HTML and JavaScript do not need to be edited when a
+category or image is added.
+
+## A.I. Generated Design gallery
+
+The A.I. Generated Design page is driven by every supported image file in
+`static/media/images/AI_generated_design`. No HTML or JavaScript edit is needed
+when an image is added, renamed, or removed.
+
+For automatic updates while editing the folder locally, keep this watcher running:
+
+```powershell
+node scripts/generate-ai-gallery.mjs --watch
+```
+
+It performs an initial sync, then regenerates `gallery.json` and `gallery-data.js`
+after every add, rename, or removal. A one-time sync remains available through
+`node scripts/generate-ai-gallery.mjs`.
+
+Pushing an AI image change to `main` runs `.github/workflows/sync-social-gallery.yml`,
+which also regenerates and commits both files automatically for the deployed site.
+The organized gallery and the hero's shuffled floating cards use the same generated
+image list. `gallery-data.js` keeps direct `file://` previews compatible, while
+`gallery.json` remains the hosted fallback.
