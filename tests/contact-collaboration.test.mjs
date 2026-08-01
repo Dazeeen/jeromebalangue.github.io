@@ -35,16 +35,27 @@ test("the contact page keeps every collaboration offer and direct channel", () =
 test("the line-style contact form sends through the custom Apps Script mailer", () => {
     assert.match(html, /<form class="contact-form"[\s\S]*?action="https:\/\/script\.google\.com\/macros\/s\/AKfycbxwS5NBw7Lqgjas7Kh7P2QtIq_b2PMLZejBw3RN6jmFLuJ493m_xT1vEsq8akp2TU0F-A\/exec"[\s\S]*?method="POST" target="contact-mailer-frame" data-contact-form>/u);
     assert.match(html, /name="name"[\s\S]*?name="email"[\s\S]*?name="message"/u);
+    assert.match(html, /id="contact-attachment" type="file"[\s\S]*?accept="\.pdf,\.docx,\.xlsx,\.pptx,\.odt,\.ods,\.odp,\.rtf,\.txt,\.csv"/u);
+    assert.match(html, /name="attachmentName"[\s\S]*?name="attachmentType"[\s\S]*?name="attachmentSize"[\s\S]*?name="attachmentData"/u);
     assert.match(html, /name="_honey"/u);
     assert.match(html, /<iframe name="contact-mailer-frame"[\s\S]*?hidden/u);
+    assert.match(html, /<iframe name="contact-mailer-capability-frame"[\s\S]*?hidden/u);
     assert.match(script, /contactForm\?\.addEventListener\("submit"/u);
     assert.match(script, /window\.location\.origin !== CONTACT_SITE_ORIGIN/u);
     assert.match(script, /window\.addEventListener\("message"/u);
     assert.match(script, /event\.data\.source !== CONTACT_MAILER_SOURCE/u);
+    assert.match(script, /event\.source === contactMailerCapabilityFrame\?\.contentWindow/u);
+    assert.match(script, /event\.data\.documentAttachments === true/u);
+    assert.match(script, /contactAttachmentInput\.disabled = !contactDocumentAttachmentsEnabled/u);
     assert.match(script, /HTMLFormElement\.prototype\.submit\.call\(contactForm\)/u);
     assert.match(script, /contactForm\.dataset\.state = "sending"/u);
     assert.match(script, /contactForm\.dataset\.state = "success"/u);
     assert.match(script, /contactForm\.dataset\.state = "error"/u);
+    assert.match(script, /CONTACT_ATTACHMENT_MAX_BYTES = 5 \* 1024 \* 1024/u);
+    assert.match(script, /FileReader\(\)/u);
+    assert.match(script, /readAsDataURL\(file\)/u);
+    assert.match(script, /validateContactAttachment\(attachment\)/u);
+    assert.doesNotMatch(html, /\.exe|\.msi|\.bat|\.cmd|\.ps1|\.app/u);
     assert.doesNotMatch(script, /formsubmit\.co/u);
 });
 
@@ -52,6 +63,7 @@ test("the reference-inspired composition is responsive and cache-busted", () => 
     assert.match(css, /\.contact-section\s*\{[\s\S]*?repeating-linear-gradient[\s\S]*?portfolio-background\.png/u);
     assert.match(css, /\.contact-intro__shape\s*\{[\s\S]*?border-radius/u);
     assert.match(css, /@media \(max-width: 720px\)\s*\{[\s\S]*?\.contact-section/u);
-    assert.match(html, /static\/css\/main\.css\?v=1\.0\.44/u);
-    assert.match(html, /static\/js\/main\.js\?v=1\.0\.37/u);
+    assert.match(css, /\.contact-form__file-input::file-selector-button/u);
+    assert.match(html, /static\/css\/main\.css\?v=1\.0\.45/u);
+    assert.match(html, /static\/js\/main\.js\?v=1\.0\.38/u);
 });

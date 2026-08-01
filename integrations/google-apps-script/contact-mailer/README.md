@@ -18,12 +18,23 @@ exposing a private API key in the public GitHub Pages source.
 
 Do not place Google passwords, OAuth tokens, or private API keys in this repository.
 The `/exec` URL is the only value the portfolio front end needs. After changing the
-Apps Script code, create a new deployed version so the live `/exec` endpoint receives
-the update.
+Apps Script code, open **Deploy > Manage deployments**, edit the existing web-app
+deployment, select **New version**, and deploy it. Updating the existing deployment
+keeps the current `/exec` URL while publishing the new email template.
 
-The backend sends a custom blue portfolio email, provides a plain-text fallback,
-sets Reply-To to the visitor, validates input, escapes HTML, uses a honeypot, and
-rate-limits repeated submissions from the same email address for one minute.
+The backend sends a custom portfolio email with the website's public blue-curtain
+background, provides a plain-text fallback, sets Reply-To to the visitor, validates
+input, escapes HTML, uses a honeypot, and rate-limits repeated submissions from the
+same email address for one minute. Email clients that block remote images will use
+the matching solid navy and blue fallback colors until images are displayed.
+
+The contact form can optionally attach one document up to 5 MB. Allowed formats are
+PDF, DOCX, XLSX, PPTX, ODT, ODS, ODP, RTF, TXT, and CSV. The browser converts the
+document to Base64 for the static GitHub Pages form, then the backend checks the
+extension, declared MIME type, decoded size, executable signatures, and document
+container structure before adding the verified blob to the email. Executables,
+scripts, macro-enabled Office packages, archives, and renamed application files are
+rejected.
 
 Google applies daily MailApp quotas. A consumer Gmail account currently has a limit
 of 100 email recipients per day; Google Workspace accounts currently have a higher

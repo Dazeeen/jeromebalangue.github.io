@@ -74,10 +74,42 @@ const contactForm = document.querySelector("[data-contact-form]");
 const contactFormStatus = document.querySelector("[data-contact-status]");
 const contactFormSubmit = contactForm?.querySelector('button[type="submit"]');
 const contactFormSubmitLabel = document.querySelector("[data-contact-submit-label]");
+const contactMailerFrame = document.querySelector('iframe[name="contact-mailer-frame"]');
+const contactMailerCapabilityFrame = document.querySelector('iframe[name="contact-mailer-capability-frame"]');
+const contactAttachmentInput = document.querySelector("[data-contact-attachment]");
+const contactAttachmentStatus = document.querySelector("[data-contact-attachment-status]");
+const contactAttachmentName = document.querySelector("[data-contact-attachment-name]");
+const contactAttachmentType = document.querySelector("[data-contact-attachment-type]");
+const contactAttachmentSize = document.querySelector("[data-contact-attachment-size]");
+const contactAttachmentData = document.querySelector("[data-contact-attachment-data]");
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 const CONTACT_SITE_ORIGIN = "https://jeromebalangue.github.io";
 const CONTACT_MAILER_SOURCE = "jerome-portfolio-contact-mailer";
-const CONTACT_MAILER_TIMEOUT_MS = 25000;
+const CONTACT_MAILER_TIMEOUT_MS = 45000;
+const CONTACT_ATTACHMENT_MAX_BYTES = 5 * 1024 * 1024;
+const CONTACT_ATTACHMENT_DEFAULT_MESSAGE = "PDF, DOCX, XLSX, PPTX, ODT, ODS, ODP, RTF, TXT, or CSV · max 5 MB";
+const CONTACT_DOCUMENT_TYPES = Object.freeze({
+    pdf: { mimeType: "application/pdf", accepted: ["application/pdf"] },
+    docx: {
+        mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        accepted: ["application/vnd.openxmlformats-officedocument.wordprocessingml.document"]
+    },
+    xlsx: {
+        mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        accepted: ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"]
+    },
+    pptx: {
+        mimeType: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        accepted: ["application/vnd.openxmlformats-officedocument.presentationml.presentation"]
+    },
+    odt: { mimeType: "application/vnd.oasis.opendocument.text", accepted: ["application/vnd.oasis.opendocument.text"] },
+    ods: { mimeType: "application/vnd.oasis.opendocument.spreadsheet", accepted: ["application/vnd.oasis.opendocument.spreadsheet"] },
+    odp: { mimeType: "application/vnd.oasis.opendocument.presentation", accepted: ["application/vnd.oasis.opendocument.presentation"] },
+    rtf: { mimeType: "application/rtf", accepted: ["application/rtf", "text/rtf", "application/x-rtf"] },
+    txt: { mimeType: "text/plain", accepted: ["text/plain"] },
+    csv: { mimeType: "text/csv", accepted: ["text/csv", "application/vnd.ms-excel"] }
+});
+const CONTACT_GENERIC_DOCUMENT_MIME_TYPES = ["application/octet-stream", "application/zip", ""];
 let lastTypedCharacter = null;
 let aboutRevealFrame = null;
 let educationTimelineFrame = null;
@@ -98,6 +130,8 @@ let printViewerOpener = null;
 let printWebGLViewer = null;
 let printRotationX = -8;
 let printRotationY = -18;
+let contactMailerCapabilityProbePending = false;
+let contactDocumentAttachmentsEnabled = false;
 let printDragPointerId = null;
 let printDragStartX = 0;
 let printDragStartY = 0;
@@ -1999,6 +2033,77 @@ const clearContactMailerTimeout = () => {
     contactMailerTimeout = null;
 };
 
+const clearContactAttachmentPayload = () => {
+    if (contactAttachmentName) contactAttachmentName.value = "";
+    if (contactAttachmentType) contactAttachmentType.value = "";
+    if (contactAttachmentSize) contactAttachmentSize.value = "";
+    if (contactAttachmentData) contactAttachmentData.value = "";
+};
+
+const setContactAttachmentStatus = (message, state = "") => {
+    if (!contactAttachmentStatus) return;
+    contactAttachmentStatus.textContent = message;
+    if (state) {
+        contactAttachmentStatus.dataset.state = state;
+    } else {
+        delete contactAttachmentStatus.dataset.state;
+    }
+};
+
+const resetContactAttachmentStatus = () => {
+    clearContactAttachmentPayload();
+    setContactAttachmentStatus(CONTACT_ATTACHMENT_DEFAULT_MESSAGE);
+};
+
+const formatContactAttachmentSize = (bytes) => {
+    if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
+
+const validateContactAttachment = (file) => {
+    const extension = String(file?.name || "").split(".").pop().toLowerCase();
+    const documentType = Object.prototype.hasOwnProperty.call(CONTACT_DOCUMENT_TYPES, extension)
+        ? CONTACT_DOCUMENT_TYPES[extension]
+        : null;
+    const browserMimeType = String(file?.type || "").toLowerCase();
+
+    if (!documentType) {
+        throw new Error("Only PDF, DOCX, XLSX, PPTX, ODT, ODS, ODP, RTF, TXT, or CSV documents are allowed.");
+    }
+    if (file.size < 1) throw new Error("The selected document is empty.");
+    if (file.size > CONTACT_ATTACHMENT_MAX_BYTES) {
+        throw new Error("Please attach a document no larger than 5 MB.");
+    }
+    if (
+        !documentType.accepted.includes(browserMimeType)
+        && !CONTACT_GENERIC_DOCUMENT_MIME_TYPES.includes(browserMimeType)
+    ) {
+        throw new Error("The selected file does not match its document extension.");
+    }
+
+    return { extension, mimeType: documentType.mimeType };
+};
+
+const readContactAttachment = (file) => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener("load", () => {
+        const result = String(reader.result || "");
+        const separatorIndex = result.indexOf(",");
+        if (separatorIndex < 0) {
+            reject(new Error("The selected document could not be read."));
+            return;
+        }
+        resolve(result.slice(separatorIndex + 1));
+    }, { once: true });
+    reader.addEventListener("error", () => {
+        reject(new Error("The selected document could not be read."));
+    }, { once: true });
+    reader.addEventListener("abort", () => {
+        reject(new Error("Document reading was cancelled."));
+    }, { once: true });
+    reader.readAsDataURL(file);
+});
+
 const isTrustedContactMailerOrigin = (origin) => (
     origin === "https://script.google.com"
     || /^https:\/\/[a-z0-9-]+\.googleusercontent\.com$/iu.test(origin)
@@ -2012,11 +2117,33 @@ window.addEventListener("message", (event) => {
         || !contactForm
     ) return;
 
+    const isCapabilityResponse = event.source === contactMailerCapabilityFrame?.contentWindow;
+    const isDeliveryResponse = event.source === contactMailerFrame?.contentWindow;
+    if (!isCapabilityResponse && !isDeliveryResponse) return;
+
+    if (isCapabilityResponse) {
+        contactMailerCapabilityProbePending = false;
+        contactDocumentAttachmentsEnabled = event.data.type === "capabilities"
+            && event.data.documentAttachments === true
+            && Number(event.data.maxAttachmentBytes) >= CONTACT_ATTACHMENT_MAX_BYTES;
+        contactAttachmentInput.disabled = !contactDocumentAttachmentsEnabled;
+        if (contactDocumentAttachmentsEnabled) {
+            resetContactAttachmentStatus();
+        } else {
+            clearContactAttachmentPayload();
+            setContactAttachmentStatus(
+                "Document attachments will activate after the secure mail service update. Messages still work normally."
+            );
+        }
+        return;
+    }
+
     clearContactMailerTimeout();
     contactFormSubmit.disabled = false;
 
     if (event.data.success) {
         contactForm.reset();
+        resetContactAttachmentStatus();
         contactForm.dataset.state = "success";
         contactFormSubmitLabel.textContent = "Message sent";
         contactFormStatus.textContent = event.data.message || "Thank you! Your message was sent to Jerome.";
@@ -2028,9 +2155,44 @@ window.addEventListener("message", (event) => {
     contactFormStatus.textContent = event.data.message || "The email service could not send your message.";
 });
 
-contactForm?.addEventListener("submit", (event) => {
+if (contactAttachmentInput && contactMailerCapabilityFrame && contactForm) {
+    contactMailerCapabilityProbePending = true;
+    contactAttachmentInput.disabled = true;
+    contactMailerCapabilityFrame.src = `${contactForm.action}?capabilities=document-attachments-v1`;
+    window.setTimeout(() => {
+        if (!contactMailerCapabilityProbePending) return;
+        contactMailerCapabilityProbePending = false;
+        contactDocumentAttachmentsEnabled = false;
+        contactAttachmentInput.disabled = true;
+        setContactAttachmentStatus(
+            "Document attachments are temporarily unavailable. You can still send your message."
+        );
+    }, 10000);
+}
+
+contactAttachmentInput?.addEventListener("change", () => {
+    clearContactAttachmentPayload();
+    const file = contactAttachmentInput.files?.[0];
+    if (!file) {
+        resetContactAttachmentStatus();
+        return;
+    }
+
+    try {
+        validateContactAttachment(file);
+        setContactAttachmentStatus(
+            `${file.name} · ${formatContactAttachmentSize(file.size)} · ready to attach`,
+            "ready"
+        );
+    } catch (error) {
+        contactAttachmentInput.value = "";
+        setContactAttachmentStatus(error.message, "error");
+    }
+});
+
+contactForm?.addEventListener("submit", async (event) => {
     event.preventDefault();
-    if (contactForm.dataset.state === "sending") return;
+    if (["preparing", "sending"].includes(contactForm.dataset.state)) return;
 
     const formData = new FormData(contactForm);
     const name = String(formData.get("name") || "").trim();
@@ -2045,10 +2207,42 @@ contactForm?.addEventListener("submit", (event) => {
         return;
     }
 
+    const attachment = contactDocumentAttachmentsEnabled
+        ? contactAttachmentInput?.files?.[0] || null
+        : null;
+    clearContactAttachmentPayload();
+    if (attachment) {
+        contactForm.dataset.state = "preparing";
+        contactFormSubmit.disabled = true;
+        contactFormSubmitLabel.textContent = "Preparing file...";
+        contactFormStatus.textContent = "Checking and securely preparing your document...";
+
+        try {
+            const documentType = validateContactAttachment(attachment);
+            const encodedDocument = await readContactAttachment(attachment);
+            if (contactAttachmentInput.files?.[0] !== attachment) {
+                throw new Error("The selected document changed. Please submit again.");
+            }
+            contactAttachmentName.value = attachment.name;
+            contactAttachmentType.value = documentType.mimeType;
+            contactAttachmentSize.value = String(attachment.size);
+            contactAttachmentData.value = encodedDocument;
+        } catch (error) {
+            clearContactAttachmentPayload();
+            contactForm.dataset.state = "error";
+            contactFormSubmit.disabled = false;
+            contactFormSubmitLabel.textContent = "Try again";
+            contactFormStatus.textContent = error.message || "The selected document could not be attached.";
+            return;
+        }
+    }
+
     contactForm.dataset.state = "sending";
     contactFormSubmit.disabled = true;
     contactFormSubmitLabel.textContent = "Sending...";
-    contactFormStatus.textContent = "Sending your message securely...";
+    contactFormStatus.textContent = attachment
+        ? "Sending your message and document securely..."
+        : "Sending your message securely...";
 
     clearContactMailerTimeout();
     contactMailerTimeout = window.setTimeout(() => {
