@@ -54,6 +54,21 @@ const aiViewer = document.querySelector(".ai-viewer");
 const aiViewerImage = document.querySelector(".ai-viewer__image");
 const aiViewerCaption = document.querySelector("[data-ai-viewer-caption]");
 const aiViewerClose = document.querySelector(".ai-viewer__close");
+const videoSection = document.querySelector(".video-section");
+const videoCategoriesNav = document.querySelector("[data-video-categories]");
+const videoGallery = document.querySelector("[data-video-gallery]");
+const videoCategoryName = document.querySelector("[data-video-category-name]");
+const videoCategoryCount = document.querySelector("[data-video-category-count]");
+const videoViewer = document.querySelector(".video-viewer");
+const videoViewerVideo = document.querySelector(".video-viewer__video");
+const videoViewerTitle = document.querySelector(".video-viewer__title");
+const videoViewerCategory = document.querySelector("[data-video-viewer-category]");
+const videoViewerCurrent = document.querySelector("[data-video-viewer-current]");
+const videoViewerTotal = document.querySelector("[data-video-viewer-total]");
+const videoViewerClose = document.querySelector(".video-viewer__close");
+const videoViewerBackdrop = document.querySelector(".video-viewer__backdrop");
+const videoViewerPrevious = document.querySelector(".video-viewer__control--previous");
+const videoViewerNext = document.querySelector(".video-viewer__control--next");
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 let lastTypedCharacter = null;
 let aboutRevealFrame = null;
@@ -88,6 +103,12 @@ let aiGalleryResizeObserver = null;
 let aiFloatImageDeck = [];
 let aiFloatSequenceToken = 0;
 let aiFloatResizeTimer = null;
+let videoCategories = [];
+let videoCategoryButtons = [];
+let videoActiveCategoryId = "";
+let videoActiveIndex = 0;
+let videoViewerOpener = null;
+let requestedVideoCategoryId = "";
 const aiCardEntries = new WeakMap();
 const aiFloatSequenceTimers = new Set();
 const aiFloatCardStates = new Map();
@@ -108,6 +129,7 @@ const EDUCATION_REVEAL_POINT = 0.68;
 const SOCIAL_DRAG_INTENT_THRESHOLD = 7;
 const SOCIAL_GALLERY_MANIFEST_URL = "static/media/images/social-media-designs/gallery.json";
 const AI_GALLERY_MANIFEST_URL = "static/media/images/AI_generated_design/gallery.json";
+const VIDEO_GALLERY_MANIFEST_URL = "static/media/videos/gallery.json";
 const AI_FLOAT_FADE_MS = 760;
 
 if (printViewerCanvas) {
@@ -171,9 +193,20 @@ const setSidebarOpen = (isOpen) => {
     syncSidebarAvailability();
 };
 
-const pageExists = (pageId) => pageViews.some((view) => view.dataset.page === pageId);
+const legacyPageAliases = {
+    "video-edited": "video-editing",
+    "trend-editing": "video-editing",
+    "editing-project": "video-editing"
+};
+const legacyVideoCategories = {
+    "video-edited": "app-promotional-video",
+    "trend-editing": "trend-editing",
+    "editing-project": "editing-project"
+};
+const resolvePageId = (pageId) => legacyPageAliases[pageId] || pageId;
+const pageExists = (pageId) => pageViews.some((view) => view.dataset.page === resolvePageId(pageId));
 const pageNavigationOrder = pageLinks
-    .map((link) => link.getAttribute("href").slice(1))
+    .map((link) => resolvePageId(link.getAttribute("href").slice(1)))
     .filter((pageId, index, pageIds) => pageExists(pageId) && pageIds.indexOf(pageId) === index);
 const pageTitles = {
     home: "Jerome Balangue | Portfolio",
@@ -181,7 +214,8 @@ const pageTitles = {
     education: "Education | Jerome Balangue",
     "social-media-design": "Social Media Designs | Jerome Balangue",
     "print-marketing-materials": "Print & Marketing Materials | Jerome Balangue",
-    "ai-generated-design": "A.I. Generated Design | Jerome Balangue"
+    "ai-generated-design": "A.I. Generated Design | Jerome Balangue",
+    "video-editing": "Video Editing | Jerome Balangue"
 };
 const cleanPageUrl = `${window.location.pathname}${window.location.search}`;
 const PAGE_SCROLL_EDGE_TOLERANCE = 1;
@@ -1381,8 +1415,310 @@ const setAIGalleryActive = (isActive) => {
     startAIFloatSequence();
 };
 
+const getActiveVideoCategory = () => videoCategories.find((category) => (
+    category.id === videoActiveCategoryId
+));
+
+const isVideoViewerOpen = () => videoViewer?.classList.contains("is-open");
+
+const updateVideoViewer = () => {
+    const category = getActiveVideoCategory();
+    const videos = category?.videos || [];
+    if (videos.length === 0 || !videoViewerVideo) return;
+
+    videoActiveIndex = ((videoActiveIndex % videos.length) + videos.length) % videos.length;
+    const entry = videos[videoActiveIndex];
+    videoViewerVideo.pause();
+    videoViewerVideo.src = entry.src;
+    videoViewerVideo.load();
+    videoViewerTitle.textContent = entry.title;
+    videoViewerCategory.textContent = category.name;
+    videoViewerCurrent.textContent = String(videoActiveIndex + 1).padStart(2, "0");
+    videoViewerTotal.textContent = String(videos.length).padStart(2, "0");
+    videoViewerPrevious.disabled = videos.length < 2;
+    videoViewerNext.disabled = videos.length < 2;
+
+    if (isVideoViewerOpen()) {
+        void videoViewerVideo.play().catch(() => {
+            // Browser autoplay rules may require the viewer's native play control.
+        });
+    }
+};
+
+const openVideoViewer = (index, opener) => {
+    if (!videoViewer || !getActiveVideoCategory()?.videos.length) return;
+
+    videoActiveIndex = index;
+    videoViewerOpener = opener;
+    videoViewer.classList.add("is-open");
+    videoViewer.setAttribute("aria-hidden", "false");
+    document.body.classList.add("video-viewer-open");
+    updateVideoViewer();
+    window.requestAnimationFrame(() => videoViewerClose.focus());
+};
+
+const closeVideoViewer = (force = false) => {
+    if (!videoViewer) return;
+
+    const wasOpen = isVideoViewerOpen();
+    videoViewer.classList.remove("is-open");
+    videoViewer.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("video-viewer-open");
+    videoViewerVideo?.pause();
+    if (videoViewerVideo) {
+        videoViewerVideo.removeAttribute("src");
+        videoViewerVideo.load();
+    }
+
+    if (wasOpen && !force && videoViewerOpener?.isConnected) videoViewerOpener.focus();
+    videoViewerOpener = null;
+};
+
+const moveVideoViewer = (step) => {
+    const videoCount = getActiveVideoCategory()?.videos.length || 0;
+    if (videoCount < 2 || step === 0) return;
+
+    videoActiveIndex = (videoActiveIndex + step + videoCount) % videoCount;
+    updateVideoViewer();
+};
+
+const pauseVideoPreview = (preview, reset = false) => {
+    preview.pause();
+    if (!reset || !Number.isFinite(preview.duration)) return;
+
+    try {
+        preview.currentTime = Math.min(0.12, preview.duration / 2);
+    } catch {
+        // A thumbnail seek can fail while a browser is still reading metadata.
+    }
+};
+
+const bindVideoCardPreview = (card, preview) => {
+    const syncAspect = () => {
+        if (!preview.videoWidth || !preview.videoHeight) return;
+        const aspectRatio = preview.videoWidth / preview.videoHeight;
+        card.classList.toggle("is-landscape", aspectRatio > 1.15);
+        card.classList.toggle("is-portrait", aspectRatio < 0.88);
+        pauseVideoPreview(preview, true);
+    };
+
+    if (preview.readyState >= HTMLMediaElement.HAVE_METADATA) {
+        syncAspect();
+    } else {
+        preview.addEventListener("loadedmetadata", syncAspect, { once: true });
+    }
+
+    if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
+    card.addEventListener("pointerenter", () => {
+        if (reducedMotion.matches || isVideoViewerOpen()) return;
+        void preview.play().catch(() => {
+            // A static thumbnail remains available if preview playback is blocked.
+        });
+    });
+    card.addEventListener("pointerleave", () => pauseVideoPreview(preview, true));
+    card.addEventListener("focusout", () => pauseVideoPreview(preview, true));
+};
+
+const showVideoGalleryStatus = (message) => {
+    const status = document.createElement("p");
+    status.className = "video-grid__status";
+    status.setAttribute("role", "status");
+    status.dataset.videoGalleryStatus = "";
+    status.textContent = message;
+    videoGallery?.replaceChildren(status);
+};
+
+const renderActiveVideoCategory = () => {
+    const category = getActiveVideoCategory();
+    if (!category || !videoGallery) return;
+
+    closeVideoViewer(true);
+    videoSection?.classList.remove("is-video-ready");
+    videoCategoryName.textContent = category.name;
+    videoCategoryCount.textContent = String(category.videos.length).padStart(2, "0");
+
+    const cardFragment = document.createDocumentFragment();
+    category.videos.forEach((entry, index) => {
+        const card = document.createElement("article");
+        card.className = "video-card";
+        card.style.setProperty("--video-card-index", index);
+
+        const button = document.createElement("button");
+        button.className = "video-card__button";
+        button.type = "button";
+        button.setAttribute("aria-label", `Play ${entry.title}`);
+
+        const media = document.createElement("span");
+        media.className = "video-card__media";
+
+        const preview = document.createElement("video");
+        preview.className = "video-card__preview";
+        preview.src = entry.src;
+        preview.muted = true;
+        preview.loop = true;
+        preview.playsInline = true;
+        preview.preload = "metadata";
+        preview.setAttribute("aria-hidden", "true");
+        preview.tabIndex = -1;
+
+        const play = document.createElement("span");
+        play.className = "video-card__play";
+        play.setAttribute("aria-hidden", "true");
+        play.innerHTML = '<svg viewBox="0 0 24 24"><path d="m8 5 11 7-11 7z"></path></svg>';
+
+        const meta = document.createElement("span");
+        meta.className = "video-card__meta";
+
+        const number = document.createElement("span");
+        number.className = "video-card__number";
+        number.textContent = String(index + 1).padStart(2, "0");
+
+        const title = document.createElement("span");
+        title.className = "video-card__title";
+        title.textContent = entry.title;
+
+        media.append(preview, play);
+        meta.append(number, title);
+        button.append(media, meta);
+        card.append(button);
+        cardFragment.append(card);
+
+        bindVideoCardPreview(card, preview);
+        button.addEventListener("click", () => openVideoViewer(index, button));
+    });
+
+    videoGallery.replaceChildren(cardFragment);
+    videoGallery.setAttribute("aria-busy", "false");
+    void videoSection?.offsetWidth;
+    videoSection?.classList.add("is-video-ready");
+};
+
+const selectVideoCategory = (categoryId) => {
+    if (!videoCategories.some((category) => category.id === categoryId)) return;
+
+    videoActiveCategoryId = categoryId;
+    videoActiveIndex = 0;
+    videoCategoryButtons.forEach((button) => {
+        const isActive = button.dataset.videoCategory === categoryId;
+        button.classList.toggle("is-active", isActive);
+        button.setAttribute("aria-selected", String(isActive));
+        button.tabIndex = isActive ? 0 : -1;
+    });
+    renderActiveVideoCategory();
+};
+
+const renderVideoGallery = (manifest) => {
+    if (!Array.isArray(manifest?.categories)) {
+        throw new Error("The video gallery manifest has no categories array.");
+    }
+
+    videoCategories = manifest.categories.filter((category) => (
+        typeof category?.id === "string" &&
+        typeof category?.name === "string" &&
+        Array.isArray(category?.videos) &&
+        category.videos.length > 0 &&
+        category.videos.every((entry) => (
+            typeof entry?.src === "string" &&
+            typeof entry?.title === "string"
+        ))
+    ));
+    if (videoCategories.length === 0) throw new Error("The video gallery has no videos.");
+
+    const categoryFragment = document.createDocumentFragment();
+    videoCategories.forEach((category, index) => {
+        const button = document.createElement("button");
+        button.className = "video-categories__button";
+        button.type = "button";
+        button.dataset.videoCategory = category.id;
+        button.setAttribute("role", "tab");
+        button.setAttribute("aria-controls", "video-gallery-panel");
+
+        const number = document.createElement("span");
+        number.className = "video-categories__number";
+        number.textContent = String(index + 1).padStart(2, "0");
+
+        const name = document.createElement("span");
+        name.className = "video-categories__name";
+        name.textContent = category.name;
+        button.append(number, name);
+        button.addEventListener("click", () => selectVideoCategory(category.id));
+        button.addEventListener("keydown", (event) => {
+            const direction = ["ArrowRight", "ArrowDown"].includes(event.key)
+                ? 1
+                : ["ArrowLeft", "ArrowUp"].includes(event.key)
+                    ? -1
+                    : 0;
+            if (direction === 0) return;
+
+            event.preventDefault();
+            const targetIndex = (index + direction + videoCategories.length) % videoCategories.length;
+            selectVideoCategory(videoCategories[targetIndex].id);
+            videoCategoryButtons[targetIndex]?.focus();
+        });
+        categoryFragment.append(button);
+    });
+
+    videoCategoriesNav.replaceChildren(categoryFragment);
+    videoCategoriesNav.setAttribute("role", "tablist");
+    videoCategoriesNav.setAttribute("aria-busy", "false");
+    videoGallery.id = "video-gallery-panel";
+    videoGallery.setAttribute("role", "tabpanel");
+    videoCategoryButtons = [...videoCategoriesNav.querySelectorAll("[data-video-category]")];
+    const initialCategoryId = videoCategories.some((category) => (
+        category.id === requestedVideoCategoryId
+    ))
+        ? requestedVideoCategoryId
+        : videoCategories[0].id;
+    selectVideoCategory(initialCategoryId);
+};
+
+const loadVideoGallery = async () => {
+    try {
+        if (window.VIDEO_GALLERY_MANIFEST) {
+            renderVideoGallery(window.VIDEO_GALLERY_MANIFEST);
+            return;
+        }
+
+        const response = await fetch(VIDEO_GALLERY_MANIFEST_URL, { cache: "no-cache" });
+        if (!response.ok) {
+            throw new Error(`Video manifest request failed with status ${response.status}.`);
+        }
+        renderVideoGallery(await response.json());
+    } catch (error) {
+        console.error("Video gallery could not be loaded.", error);
+        videoCategories = [];
+        videoCategoryButtons = [];
+        videoCategoriesNav?.replaceChildren();
+        videoCategoriesNav?.setAttribute("aria-busy", "false");
+        videoGallery?.setAttribute("aria-busy", "false");
+        showVideoGalleryStatus("Videos could not be loaded.");
+    }
+};
+
+const setVideoGalleryActive = (isActive) => {
+    if (!videoSection) return;
+
+    if (!isActive) {
+        closeVideoViewer(true);
+        videoGallery?.querySelectorAll("video").forEach((preview) => preview.pause());
+        return;
+    }
+
+    if (videoCategories.length > 0) renderActiveVideoCategory();
+};
+
 const showPage = (requestedPage, shouldScroll = true) => {
-    const pageId = pageExists(requestedPage) ? requestedPage : "home";
+    const resolvedPageId = resolvePageId(requestedPage);
+    const pageId = pageExists(resolvedPageId) ? resolvedPageId : "home";
+
+    requestedVideoCategoryId = legacyVideoCategories[requestedPage] || "";
+    if (
+        pageId === "video-editing" &&
+        requestedVideoCategoryId &&
+        videoCategories.some((category) => category.id === requestedVideoCategoryId)
+    ) {
+        selectVideoCategory(requestedVideoCategoryId);
+    }
 
     setEducationExitArmed();
 
@@ -1394,7 +1730,8 @@ const showPage = (requestedPage, shouldScroll = true) => {
     });
 
     pageLinks.forEach((link) => {
-        const isCurrent = link.getAttribute("href") === `#${pageId}`;
+        const linkedPageId = resolvePageId(link.getAttribute("href").slice(1));
+        const isCurrent = linkedPageId === pageId;
         if (isCurrent) {
             link.setAttribute("aria-current", "page");
         } else {
@@ -1407,6 +1744,7 @@ const showPage = (requestedPage, shouldScroll = true) => {
     setSocialGalleryActive(pageId === "social-media-design");
     setPrintShowcaseActive(pageId === "print-marketing-materials");
     setAIGalleryActive(pageId === "ai-generated-design");
+    setVideoGalleryActive(pageId === "video-editing");
 
     document.body.dataset.page = pageId;
     document.title = pageTitles[pageId] || pageTitles.home;
@@ -1427,14 +1765,15 @@ const positionPageAtEntry = (pageId, direction) => {
     if (pageId === "education") scheduleEducationTimelineUpdate();
 };
 
-const navigateToPage = (pageId, direction = 0) => {
+const navigateToPage = (requestedPage, direction = 0) => {
+    const pageId = resolvePageId(requestedPage);
     if (!pageExists(pageId)) return;
 
     if (document.body.dataset.page !== pageId) {
-        window.history.pushState({ page: pageId }, "", cleanPageUrl);
+        window.history.pushState({ page: requestedPage }, "", cleanPageUrl);
     }
 
-    showPage(pageId);
+    showPage(requestedPage);
     positionPageAtEntry(pageId, direction);
 };
 
@@ -1648,6 +1987,7 @@ const loadSocialGallery = async () => {
 
 void loadSocialGallery();
 void loadAIGallery();
+void loadVideoGallery();
 
 socialPreviousButton?.addEventListener("click", () => moveSocialCarousel(-1));
 socialNextButton?.addEventListener("click", () => moveSocialCarousel(1));
@@ -1703,6 +2043,10 @@ aiViewer?.addEventListener("click", (event) => {
     if (event.target.closest(".ai-viewer__image, .ai-viewer__close")) return;
     closeAIViewer();
 });
+videoViewerClose?.addEventListener("click", () => closeVideoViewer());
+videoViewerBackdrop?.addEventListener("click", () => closeVideoViewer());
+videoViewerPrevious?.addEventListener("click", () => moveVideoViewer(-1));
+videoViewerNext?.addEventListener("click", () => moveVideoViewer(1));
 
 printObjects.forEach((printObject) => {
     printObject.addEventListener("click", () => openPrintViewer(printObject));
@@ -1754,7 +2098,7 @@ printViewerRotator?.addEventListener("pointercancel", stopPrintViewerDrag);
 
 document.addEventListener("wheel", (event) => {
     if (event.ctrlKey) return;
-    if (isSocialLightboxOpen() || isPrintViewerOpen() || isAIViewerOpen()) {
+    if (isSocialLightboxOpen() || isPrintViewerOpen() || isAIViewerOpen() || isVideoViewerOpen()) {
         event.preventDefault();
         return;
     }
@@ -1815,6 +2159,42 @@ window.addEventListener("popstate", (event) => {
 });
 
 document.addEventListener("keydown", (event) => {
+    if (isVideoViewerOpen()) {
+        if (event.key === "Tab") {
+            const viewerControls = [
+                videoViewerClose,
+                videoViewerVideo,
+                videoViewerPrevious,
+                videoViewerNext
+            ].filter((control) => control && !control.disabled);
+            const currentControlIndex = viewerControls.indexOf(document.activeElement);
+            const nextControlIndex = event.shiftKey
+                ? (currentControlIndex <= 0 ? viewerControls.length - 1 : currentControlIndex - 1)
+                : (currentControlIndex >= viewerControls.length - 1 ? 0 : currentControlIndex + 1);
+
+            event.preventDefault();
+            viewerControls[nextControlIndex].focus();
+            return;
+        }
+
+        if (event.key === "Escape") {
+            event.preventDefault();
+            closeVideoViewer();
+            return;
+        }
+
+        if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+            event.preventDefault();
+            moveVideoViewer(event.key === "ArrowRight" ? 1 : -1);
+            return;
+        }
+
+        if (["ArrowUp", "ArrowDown", "PageUp", "PageDown"].includes(event.key)) {
+            event.preventDefault();
+            return;
+        }
+    }
+
     if (isAIViewerOpen()) {
         if (event.key === "Tab") {
             event.preventDefault();
@@ -1980,6 +2360,7 @@ reducedMotion.addEventListener("change", () => {
     setSocialGalleryActive(document.body.dataset.page === "social-media-design");
     setPrintShowcaseActive(document.body.dataset.page === "print-marketing-materials");
     setAIGalleryActive(document.body.dataset.page === "ai-generated-design");
+    setVideoGalleryActive(document.body.dataset.page === "video-editing");
 });
 document.addEventListener("visibilitychange", () => {
     if (document.hidden) {
@@ -1989,8 +2370,8 @@ document.addEventListener("visibilitychange", () => {
     }
 });
 updateSocialCarousel();
-const initialPage = window.location.hash.slice(1) || "home";
-const initialPageId = pageExists(initialPage) ? initialPage : "home";
-window.history.replaceState({ page: initialPageId }, "", cleanPageUrl);
-showPage(initialPageId, false);
+const initialPageRequest = window.location.hash.slice(1) || "home";
+const initialPageId = pageExists(initialPageRequest) ? resolvePageId(initialPageRequest) : "home";
+window.history.replaceState({ page: initialPageRequest }, "", cleanPageUrl);
+showPage(initialPageId === "home" ? "home" : initialPageRequest, false);
 syncSidebarAvailability();

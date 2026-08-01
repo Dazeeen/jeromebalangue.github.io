@@ -13,6 +13,10 @@ on:
       - "!static/media/images/AI_generated_design/gallery.json"
       - "!static/media/images/AI_generated_design/gallery-data.js"
       - "scripts/generate-ai-gallery.mjs"
+      - "static/media/videos/**"
+      - "!static/media/videos/gallery.json"
+      - "!static/media/videos/gallery-data.js"
+      - "scripts/generate-video-gallery.mjs"
   workflow_dispatch:
 
 permissions:
@@ -34,6 +38,7 @@ jobs:
         run: |
           node scripts/generate-social-gallery.mjs
           node scripts/generate-ai-gallery.mjs
+          node scripts/generate-video-gallery.mjs
 
       - name: Commit updated manifest
         shell: bash
@@ -42,7 +47,9 @@ jobs:
             static/media/images/social-media-designs/gallery.json \
             static/media/images/social-media-designs/gallery-data.js \
             static/media/images/AI_generated_design/gallery.json \
-            static/media/images/AI_generated_design/gallery-data.js; then
+            static/media/images/AI_generated_design/gallery-data.js \
+            static/media/videos/gallery.json \
+            static/media/videos/gallery-data.js; then
             echo "Gallery data is already current."
             exit 0
           fi
@@ -53,6 +60,8 @@ jobs:
             static/media/images/social-media-designs/gallery.json \
             static/media/images/social-media-designs/gallery-data.js \
             static/media/images/AI_generated_design/gallery.json \
-            static/media/images/AI_generated_design/gallery-data.js
+            static/media/images/AI_generated_design/gallery-data.js \
+            static/media/videos/gallery.json \
+            static/media/videos/gallery-data.js
           git commit -m "chore: sync portfolio gallery data"
           git push

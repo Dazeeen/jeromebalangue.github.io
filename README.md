@@ -34,7 +34,10 @@ static/
       source-assets/        Labeled source/reference images
       archive/              Organized images not shown on the live pages
     archives/               Non-image source archives
-    videos/                 Portfolio videos
+    videos/                 Folder-driven Video Editing gallery
+      --Category Name--/    Videos assigned to this category
+      gallery.json          Generated video manifest
+      gallery-data.js       Direct-file-compatible video data
   vendor/
     three/                  Local Three.js library and license
 ```
@@ -91,3 +94,30 @@ which also regenerates and commits both files automatically for the deployed sit
 The organized gallery and the hero's shuffled floating cards use the same generated
 image list. `gallery-data.js` keeps direct `file://` previews compatible, while
 `gallery.json` remains the hosted fallback.
+
+## Video Editing categories
+
+The Video Editing page combines App Promotional Video, Trend Editing, and Editing
+Project in one category browser. Its categories and cards are generated from folders
+inside `static/media/videos`. Category folders use the same exact pattern:
+
+```text
+--Category Name--
+```
+
+The folder name becomes the category label, and the video filename becomes the card
+title. Supported browser video files are M4V, MP4, OGG/OGV, and WebM. Empty category
+folders are not displayed.
+
+For automatic updates while adding or renaming videos locally, keep this watcher
+running:
+
+```powershell
+node scripts/generate-video-gallery.mjs --watch
+```
+
+A one-time generation is also available through
+`node scripts/generate-video-gallery.mjs`. Pushing a category-folder or video change
+to `main` runs `.github/workflows/sync-social-gallery.yml`, which regenerates and
+commits `gallery.json` and `gallery-data.js`. The browser data file keeps direct
+`file://` previews working without requiring a local server.
