@@ -94,13 +94,20 @@ test("the page renders one dynamic categorized Video Editing view", async () => 
     assert.match(script, /VIDEO_GALLERY_MANIFEST_URL/u);
     assert.match(script, /window\.VIDEO_GALLERY_MANIFEST/u);
     assert.match(script, /renderVideoGallery/u);
-    assert.match(script, /openVideoViewer/u);
+    assert.match(script, /openVideoDetail/u);
+    assert.match(script, /openVideoMosaic/u);
+    assert.match(script, /setVideoMode/u);
     assert.match(script, /setVideoGalleryActive/u);
-    assert.match(stylesheet, /\.video-browser\s*\{[^}]*grid-template-columns:/su);
-    assert.match(stylesheet, /\.video-categories__button\.is-active/u);
-    assert.match(stylesheet, /\.video-grid\s*\{[^}]*display:\s*grid;/su);
-    assert.match(stylesheet, /\.video-viewer\.is-open/u);
-    assert.match(stylesheet, /@media \(max-width: 720px\)[\s\S]*\.video-categories\s*\{[^}]*overflow-x:\s*auto;/u);
+    assert.match(html, /data-video-cinema data-mode="rail"/u);
+    assert.match(html, /data-video-detail/u);
+    assert.match(html, /data-video-mosaic/u);
+    assert.doesNotMatch(html, /class="video-viewer/u);
+    assert.match(stylesheet, /\.video-cinema\s*\{[^}]*grid-template-rows:/su);
+    assert.match(stylesheet, /\.video-poster\.is-active/u);
+    assert.match(stylesheet, /@keyframes video-poster-rebuild/u);
+    assert.match(stylesheet, /\.video-cinema\[data-mode="detail"\] \.video-cinema__detail/u);
+    assert.match(stylesheet, /@keyframes video-mosaic-rise/u);
+    assert.match(stylesheet, /@media \(max-width: 720px\)[\s\S]*\.video-cinema__category-list\s*\{[^}]*overflow-x:\s*auto;/u);
 });
 
 test("Video Editing is reachable through current and legacy navigation targets", async () => {

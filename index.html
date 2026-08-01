@@ -9,7 +9,7 @@
     <script src="static/js/head.js"></script>
     <link rel="preload" href="static/fonts/manrope-latin.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="preload" href="static/fonts/pinyon-script-latin.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="stylesheet" href="static/css/main.css?v=1.0.30">
+    <link rel="stylesheet" href="static/css/main.css?v=1.0.31">
     <link rel="preload" href="static/media/images/site/portfolio-background.png" as="image">
     <link rel="preload" href="static/media/images/home/jerome-hero-cutout.png" as="image">
     <link rel="preload" href="static/media/images/about/jerome-laptop-cutout.png" as="image">
@@ -400,45 +400,98 @@
 
     <section class="video-section page-view" id="video-editing" data-page="video-editing"
         aria-labelledby="video-title">
-        <div class="video-section__inner">
-            <header class="video-section__header">
-                <div>
-                    <p class="video-section__eyebrow">06 / Selected Motion Work</p>
-                    <h2 class="video-section__title" id="video-title">Video Editing</h2>
-                </div>
-
-                <p class="video-section__intro">
-                    Produced engaging video content by combining creative storytelling with professional editing
-                    techniques.
-                </p>
+        <div class="video-cinema" data-video-cinema data-mode="rail">
+            <header class="video-cinema__topbar">
+                <p class="video-cinema__edition">06 / Selected Motion Work</p>
+                <h2 class="video-cinema__brand" id="video-title">
+                    <span>Video</span> Editing
+                </h2>
+                <p class="video-cinema__artist">Jerome Balangue</p>
             </header>
 
-            <div class="video-browser">
-                <nav class="video-categories" aria-label="Video editing categories" data-video-categories
-                    aria-busy="true"></nav>
+            <div class="video-cinema__body">
+                <nav class="video-cinema__sidebar" aria-label="Video editing categories">
+                    <p class="video-cinema__sidebar-label">Collections</p>
+                    <div class="video-cinema__category-list" data-video-categories aria-busy="true"></div>
+                    <button class="video-cinema__gallery-link" type="button" data-video-gallery-open>
+                        <span aria-hidden="true">+</span>
+                        <span>Gallery</span>
+                    </button>
+                </nav>
 
-                <div class="video-collection">
-                    <header class="video-collection__header">
-                        <div>
-                            <p class="video-collection__eyebrow">Now viewing</p>
-                            <h3 class="video-collection__title" data-video-category-name>Video collection</h3>
+                <div class="video-cinema__stage" data-video-stage>
+                    <div class="video-cinema__rail-shell">
+                        <button class="video-cinema__rail-control video-cinema__rail-control--previous" type="button"
+                            data-video-previous aria-label="Focus previous video">
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="m14.5 5-7 7 7 7"></path>
+                            </svg>
+                        </button>
+
+                        <div class="video-cinema__rail" data-video-gallery aria-busy="true" aria-live="polite">
+                            <p class="video-cinema__status" role="status" data-video-gallery-status>
+                                Loading video collection&hellip;
+                            </p>
                         </div>
 
-                        <p class="video-collection__count" aria-live="polite">
-                            <span data-video-category-count>00</span>
-                            <span>videos</span>
-                        </p>
-                    </header>
-
-                    <div class="video-grid" data-video-gallery aria-busy="true" aria-live="polite">
-                        <p class="video-grid__status" role="status" data-video-gallery-status>
-                            Loading video collection&hellip;
-                        </p>
+                        <button class="video-cinema__rail-control video-cinema__rail-control--next" type="button"
+                            data-video-next aria-label="Focus next video">
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="m9.5 5 7 7-7 7"></path>
+                            </svg>
+                        </button>
                     </div>
+
+                    <article class="video-cinema__detail" data-video-detail aria-hidden="true">
+                        <video class="video-cinema__detail-video" data-video-detail-video muted loop playsinline
+                            preload="metadata"></video>
+                        <span class="video-cinema__detail-shade" aria-hidden="true"></span>
+
+                        <div class="video-cinema__detail-copy">
+                            <p data-video-detail-category>Video Editing</p>
+                            <h3 data-video-detail-title>Selected video</h3>
+                        </div>
+
+                        <button class="video-cinema__detail-action video-cinema__detail-action--watch" type="button"
+                            data-video-watch>
+                            <span>Watch</span>
+                            <span class="video-cinema__action-ring" aria-hidden="true"></span>
+                        </button>
+
+                        <button class="video-cinema__detail-action video-cinema__detail-action--gallery" type="button"
+                            data-video-detail-gallery>
+                            <span>View Gallery</span>
+                            <span class="video-cinema__action-ring" aria-hidden="true"></span>
+                        </button>
+
+                        <button class="video-cinema__back" type="button" data-video-detail-close>
+                            <span aria-hidden="true">&larr;</span>
+                            <span>Back to titles</span>
+                        </button>
+                    </article>
+
+                    <section class="video-cinema__mosaic" data-video-mosaic aria-labelledby="video-gallery-title"
+                        aria-hidden="true">
+                        <h3 class="video-cinema__mosaic-title" id="video-gallery-title">Gallery</h3>
+                        <div class="video-cinema__mosaic-items" data-video-mosaic-items></div>
+                        <button class="video-cinema__back video-cinema__back--gallery" type="button"
+                            data-video-gallery-close>
+                            <span aria-hidden="true">&larr;</span>
+                            <span>Back to titles</span>
+                        </button>
+                    </section>
                 </div>
             </div>
 
-            <span class="video-section__index" aria-hidden="true">[6]</span>
+            <footer class="video-cinema__footer">
+                <p class="video-cinema__collection-name" data-video-category-name>Video collection</p>
+                <p class="video-cinema__hint">Hover to focus <span aria-hidden="true">&middot;</span> Select to expand</p>
+                <p class="video-cinema__counter" aria-live="polite">
+                    <span data-video-current>01</span>
+                    <span aria-hidden="true">/</span>
+                    <span data-video-category-count>00</span>
+                </p>
+            </footer>
         </div>
     </section>
 
@@ -460,51 +513,6 @@
                 <img class="ai-viewer__image" src="" alt="">
                 <figcaption class="ai-viewer__caption" data-ai-viewer-caption></figcaption>
             </figure>
-        </div>
-    </div>
-
-    <div class="video-viewer" role="dialog" aria-modal="true" aria-labelledby="video-viewer-title"
-        aria-hidden="true">
-        <button class="video-viewer__backdrop" type="button" tabindex="-1"
-            aria-label="Close video player"></button>
-
-        <div class="video-viewer__dialog">
-            <header class="video-viewer__header">
-                <div>
-                    <p class="video-viewer__category" data-video-viewer-category>Video Editing</p>
-                    <h2 class="video-viewer__title" id="video-viewer-title">Selected video</h2>
-                </div>
-
-                <button class="video-viewer__close" type="button" aria-label="Close video player">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M6 6l12 12M18 6 6 18"></path>
-                    </svg>
-                </button>
-            </header>
-
-            <div class="video-viewer__stage">
-                <video class="video-viewer__video" controls playsinline preload="metadata"></video>
-
-                <button class="video-viewer__control video-viewer__control--previous" type="button"
-                    aria-label="Play previous video">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="m14.5 5-7 7 7 7"></path>
-                    </svg>
-                </button>
-
-                <button class="video-viewer__control video-viewer__control--next" type="button"
-                    aria-label="Play next video">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="m9.5 5 7 7-7 7"></path>
-                    </svg>
-                </button>
-            </div>
-
-            <p class="video-viewer__counter" aria-live="polite">
-                <span data-video-viewer-current>01</span>
-                <span aria-hidden="true">/</span>
-                <span data-video-viewer-total>01</span>
-            </p>
         </div>
     </div>
 
@@ -629,7 +637,7 @@
     <script src="static/media/images/social-media-designs/gallery-data.js?v=1.0.16"></script>
     <script src="static/media/images/AI_generated_design/gallery-data.js?v=1.0.21"></script>
     <script src="static/media/videos/gallery-data.js?v=1.0.1"></script>
-    <script src="static/js/main.js?v=1.0.27"></script>
+    <script src="static/js/main.js?v=1.0.28"></script>
 </body>
 
 </html>

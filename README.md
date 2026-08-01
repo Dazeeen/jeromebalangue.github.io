@@ -98,8 +98,10 @@ image list. `gallery-data.js` keeps direct `file://` previews compatible, while
 ## Video Editing categories
 
 The Video Editing page combines App Promotional Video, Trend Editing, and Editing
-Project in one category browser. Its categories and cards are generated from folders
-inside `static/media/videos`. Category folders use the same exact pattern:
+Project in one cinematic category experience: a focusable poster rail expands into an
+inline feature view, with a staggered full-screen Gallery mosaic. Its categories and
+videos are generated from folders inside `static/media/videos`. Category folders use
+the same exact pattern:
 
 ```text
 --Category Name--

@@ -59,16 +59,22 @@ const videoCategoriesNav = document.querySelector("[data-video-categories]");
 const videoGallery = document.querySelector("[data-video-gallery]");
 const videoCategoryName = document.querySelector("[data-video-category-name]");
 const videoCategoryCount = document.querySelector("[data-video-category-count]");
-const videoViewer = document.querySelector(".video-viewer");
-const videoViewerVideo = document.querySelector(".video-viewer__video");
-const videoViewerTitle = document.querySelector(".video-viewer__title");
-const videoViewerCategory = document.querySelector("[data-video-viewer-category]");
-const videoViewerCurrent = document.querySelector("[data-video-viewer-current]");
-const videoViewerTotal = document.querySelector("[data-video-viewer-total]");
-const videoViewerClose = document.querySelector(".video-viewer__close");
-const videoViewerBackdrop = document.querySelector(".video-viewer__backdrop");
-const videoViewerPrevious = document.querySelector(".video-viewer__control--previous");
-const videoViewerNext = document.querySelector(".video-viewer__control--next");
+const videoCinema = document.querySelector("[data-video-cinema]");
+const videoStage = document.querySelector("[data-video-stage]");
+const videoPreviousButton = document.querySelector("[data-video-previous]");
+const videoNextButton = document.querySelector("[data-video-next]");
+const videoCurrentNumber = document.querySelector("[data-video-current]");
+const videoDetail = document.querySelector("[data-video-detail]");
+const videoDetailVideo = document.querySelector("[data-video-detail-video]");
+const videoDetailTitle = document.querySelector("[data-video-detail-title]");
+const videoDetailCategory = document.querySelector("[data-video-detail-category]");
+const videoWatchButton = document.querySelector("[data-video-watch]");
+const videoDetailGalleryButton = document.querySelector("[data-video-detail-gallery]");
+const videoDetailCloseButton = document.querySelector("[data-video-detail-close]");
+const videoGalleryOpenButton = document.querySelector("[data-video-gallery-open]");
+const videoGalleryCloseButton = document.querySelector("[data-video-gallery-close]");
+const videoMosaic = document.querySelector("[data-video-mosaic]");
+const videoMosaicItems = document.querySelector("[data-video-mosaic-items]");
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 let lastTypedCharacter = null;
 let aboutRevealFrame = null;
@@ -107,7 +113,12 @@ let videoCategories = [];
 let videoCategoryButtons = [];
 let videoActiveCategoryId = "";
 let videoActiveIndex = 0;
-let videoViewerOpener = null;
+let videoPosterButtons = [];
+let videoMode = "rail";
+let videoDetailSource = null;
+let videoDetailAnimation = null;
+let videoRailWheelDelta = 0;
+let videoRailWheelTimer = null;
 let requestedVideoCategoryId = "";
 const aiCardEntries = new WeakMap();
 const aiFloatSequenceTimers = new Set();
@@ -1419,68 +1430,7 @@ const getActiveVideoCategory = () => videoCategories.find((category) => (
     category.id === videoActiveCategoryId
 ));
 
-const isVideoViewerOpen = () => videoViewer?.classList.contains("is-open");
-
-const updateVideoViewer = () => {
-    const category = getActiveVideoCategory();
-    const videos = category?.videos || [];
-    if (videos.length === 0 || !videoViewerVideo) return;
-
-    videoActiveIndex = ((videoActiveIndex % videos.length) + videos.length) % videos.length;
-    const entry = videos[videoActiveIndex];
-    videoViewerVideo.pause();
-    videoViewerVideo.src = entry.src;
-    videoViewerVideo.load();
-    videoViewerTitle.textContent = entry.title;
-    videoViewerCategory.textContent = category.name;
-    videoViewerCurrent.textContent = String(videoActiveIndex + 1).padStart(2, "0");
-    videoViewerTotal.textContent = String(videos.length).padStart(2, "0");
-    videoViewerPrevious.disabled = videos.length < 2;
-    videoViewerNext.disabled = videos.length < 2;
-
-    if (isVideoViewerOpen()) {
-        void videoViewerVideo.play().catch(() => {
-            // Browser autoplay rules may require the viewer's native play control.
-        });
-    }
-};
-
-const openVideoViewer = (index, opener) => {
-    if (!videoViewer || !getActiveVideoCategory()?.videos.length) return;
-
-    videoActiveIndex = index;
-    videoViewerOpener = opener;
-    videoViewer.classList.add("is-open");
-    videoViewer.setAttribute("aria-hidden", "false");
-    document.body.classList.add("video-viewer-open");
-    updateVideoViewer();
-    window.requestAnimationFrame(() => videoViewerClose.focus());
-};
-
-const closeVideoViewer = (force = false) => {
-    if (!videoViewer) return;
-
-    const wasOpen = isVideoViewerOpen();
-    videoViewer.classList.remove("is-open");
-    videoViewer.setAttribute("aria-hidden", "true");
-    document.body.classList.remove("video-viewer-open");
-    videoViewerVideo?.pause();
-    if (videoViewerVideo) {
-        videoViewerVideo.removeAttribute("src");
-        videoViewerVideo.load();
-    }
-
-    if (wasOpen && !force && videoViewerOpener?.isConnected) videoViewerOpener.focus();
-    videoViewerOpener = null;
-};
-
-const moveVideoViewer = (step) => {
-    const videoCount = getActiveVideoCategory()?.videos.length || 0;
-    if (videoCount < 2 || step === 0) return;
-
-    videoActiveIndex = (videoActiveIndex + step + videoCount) % videoCount;
-    updateVideoViewer();
-};
+const isVideoExperienceOpen = () => videoMode !== "rail";
 
 const pauseVideoPreview = (preview, reset = false) => {
     preview.pause();
@@ -1493,66 +1443,270 @@ const pauseVideoPreview = (preview, reset = false) => {
     }
 };
 
-const bindVideoCardPreview = (card, preview) => {
-    const syncAspect = () => {
-        if (!preview.videoWidth || !preview.videoHeight) return;
-        const aspectRatio = preview.videoWidth / preview.videoHeight;
-        card.classList.toggle("is-landscape", aspectRatio > 1.15);
-        card.classList.toggle("is-portrait", aspectRatio < 0.88);
-        pauseVideoPreview(preview, true);
-    };
-
-    if (preview.readyState >= HTMLMediaElement.HAVE_METADATA) {
-        syncAspect();
-    } else {
-        preview.addEventListener("loadedmetadata", syncAspect, { once: true });
+const cleanUpVideoDetail = () => {
+    videoDetailAnimation?.cancel();
+    videoDetailAnimation = null;
+    videoDetailVideo?.pause();
+    if (videoDetailVideo) {
+        videoDetailVideo.removeAttribute("src");
+        videoDetailVideo.controls = false;
+        videoDetailVideo.muted = true;
+        videoDetailVideo.load();
     }
-
-    if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
-    card.addEventListener("pointerenter", () => {
-        if (reducedMotion.matches || isVideoViewerOpen()) return;
-        void preview.play().catch(() => {
-            // A static thumbnail remains available if preview playback is blocked.
-        });
-    });
-    card.addEventListener("pointerleave", () => pauseVideoPreview(preview, true));
-    card.addEventListener("focusout", () => pauseVideoPreview(preview, true));
+    videoWatchButton?.classList.remove("is-playing");
+    const label = videoWatchButton?.querySelector("span:first-child");
+    if (label) label.textContent = "Watch";
 };
 
 const showVideoGalleryStatus = (message) => {
     const status = document.createElement("p");
-    status.className = "video-grid__status";
+    status.className = "video-cinema__status";
     status.setAttribute("role", "status");
     status.dataset.videoGalleryStatus = "";
     status.textContent = message;
     videoGallery?.replaceChildren(status);
 };
 
+const setVideoMode = (mode) => {
+    videoMode = mode;
+    if (videoCinema) videoCinema.dataset.mode = mode;
+    document.body.classList.toggle("video-gallery-open", mode === "gallery");
+    videoDetail?.setAttribute("aria-hidden", String(mode !== "detail"));
+    videoMosaic?.setAttribute("aria-hidden", String(mode !== "gallery"));
+};
+
+const playActiveVideoPreview = () => {
+    videoPosterButtons.forEach((poster, index) => {
+        const preview = poster.querySelector("video");
+        if (!preview) return;
+
+        if (
+            index === videoActiveIndex &&
+            videoMode === "rail" &&
+            videoSection?.classList.contains("is-active") &&
+            !reducedMotion.matches
+        ) {
+            void preview.play().catch(() => {
+                // A still frame remains if the browser blocks muted autoplay.
+            });
+        } else {
+            pauseVideoPreview(preview);
+        }
+    });
+};
+
+const updateVideoRail = ({ focus = false, scroll = true } = {}) => {
+    const videoCount = getActiveVideoCategory()?.videos.length || 0;
+    if (videoCount === 0) return;
+
+    videoActiveIndex = ((videoActiveIndex % videoCount) + videoCount) % videoCount;
+    videoPosterButtons.forEach((poster, index) => {
+        const isActive = index === videoActiveIndex;
+        poster.classList.toggle("is-active", isActive);
+        poster.setAttribute("aria-current", isActive ? "true" : "false");
+        poster.tabIndex = isActive ? 0 : -1;
+    });
+    if (videoCurrentNumber) {
+        videoCurrentNumber.textContent = String(videoActiveIndex + 1).padStart(2, "0");
+    }
+    if (videoPreviousButton) videoPreviousButton.disabled = videoCount < 2;
+    if (videoNextButton) videoNextButton.disabled = videoCount < 2;
+
+    const activePoster = videoPosterButtons[videoActiveIndex];
+    if (scroll && activePoster && window.innerWidth <= 720) {
+        activePoster.scrollIntoView({ behavior: reducedMotion.matches ? "auto" : "smooth", inline: "center", block: "nearest" });
+    }
+    if (focus) activePoster?.focus({ preventScroll: true });
+    playActiveVideoPreview();
+};
+
+const setVideoActiveIndex = (index, options = {}) => {
+    const count = getActiveVideoCategory()?.videos.length || 0;
+    if (count === 0) return;
+    videoActiveIndex = (index + count) % count;
+    updateVideoRail(options);
+};
+
+const animateVideoDetailFrom = (sourceBounds, reverse = false) => {
+    if (!videoDetail || !sourceBounds || reducedMotion.matches) return null;
+
+    const destination = videoDetail.getBoundingClientRect();
+    if (!destination.width || !destination.height) return null;
+    const startFrame = {
+        transformOrigin: "top left",
+        transform: `translate(${sourceBounds.left - destination.left}px, ${sourceBounds.top - destination.top}px) scale(${sourceBounds.width / destination.width}, ${sourceBounds.height / destination.height})`,
+        borderRadius: "0.15rem",
+        opacity: 0.76
+    };
+    const endFrame = {
+        transformOrigin: "top left",
+        transform: "translate(0, 0) scale(1, 1)",
+        borderRadius: "0",
+        opacity: 1
+    };
+    return videoDetail.animate(reverse ? [endFrame, startFrame] : [startFrame, endFrame], {
+        duration: reverse ? 560 : 760,
+        easing: "cubic-bezier(0.22, 1, 0.36, 1)",
+        fill: "both"
+    });
+};
+
+const openVideoDetail = (index = videoActiveIndex, source = videoPosterButtons[index]) => {
+    const category = getActiveVideoCategory();
+    const entry = category?.videos[index];
+    if (!entry || !videoDetail || !videoDetailVideo) return;
+
+    setVideoActiveIndex(index, { scroll: false });
+    const sourceBounds = source?.getBoundingClientRect();
+    const sourcePreview = source?.querySelector("video");
+    const sourceTime = Number.isFinite(sourcePreview?.currentTime) ? sourcePreview.currentTime : 0;
+    videoDetailSource = source;
+    videoDetailTitle.textContent = entry.title;
+    videoDetailCategory.textContent = category.name;
+    videoDetailVideo.src = entry.src;
+    videoDetailVideo.load();
+    videoDetailVideo.addEventListener("loadedmetadata", () => {
+        if (Number.isFinite(videoDetailVideo.duration)) {
+            videoDetailVideo.currentTime = Math.min(sourceTime, Math.max(0, videoDetailVideo.duration - 0.1));
+        }
+        void videoDetailVideo.play().catch(() => {
+            // The Watch control remains available if muted autoplay is unavailable.
+        });
+    }, { once: true });
+
+    videoGallery?.querySelectorAll("video").forEach((preview) => preview.pause());
+    setVideoMode("detail");
+    window.requestAnimationFrame(() => {
+        videoDetailAnimation?.cancel();
+        videoDetailAnimation = animateVideoDetailFrom(sourceBounds);
+        videoDetailAnimation?.addEventListener("finish", () => {
+            videoDetailAnimation = null;
+            videoDetailCloseButton?.focus({ preventScroll: true });
+        }, { once: true });
+        if (!videoDetailAnimation) videoDetailCloseButton?.focus({ preventScroll: true });
+    });
+};
+
+const closeVideoDetail = (immediate = false) => {
+    if (videoMode !== "detail") return;
+    const source = videoDetailSource;
+    const finish = () => {
+        setVideoMode("rail");
+        cleanUpVideoDetail();
+        playActiveVideoPreview();
+        const focusTarget = source?.classList.contains("video-mosaic-card")
+            ? videoPosterButtons[videoActiveIndex]
+            : source;
+        if (!immediate && focusTarget?.isConnected) focusTarget.focus({ preventScroll: true });
+        videoDetailSource = null;
+    };
+
+    videoDetailAnimation?.cancel();
+    const sourceBounds = !immediate && source?.isConnected ? source.getBoundingClientRect() : null;
+    const animation = animateVideoDetailFrom(sourceBounds, true);
+    if (!animation) {
+        finish();
+        return;
+    }
+    videoDetailAnimation = animation;
+    animation.addEventListener("finish", finish, { once: true });
+};
+
+const renderVideoMosaic = () => {
+    const category = getActiveVideoCategory();
+    if (!category || !videoMosaicItems) return;
+
+    const fragment = document.createDocumentFragment();
+    category.videos.forEach((entry, index) => {
+        const card = document.createElement("button");
+        card.className = "video-mosaic-card";
+        card.type = "button";
+        card.style.setProperty("--video-mosaic-index", index);
+        card.setAttribute("aria-label", `Open ${entry.title}`);
+
+        const preview = document.createElement("video");
+        preview.src = entry.src;
+        preview.muted = true;
+        preview.playsInline = true;
+        preview.preload = "metadata";
+        preview.tabIndex = -1;
+        preview.setAttribute("aria-hidden", "true");
+
+        const title = document.createElement("span");
+        title.textContent = entry.title;
+        card.append(preview, title);
+        card.addEventListener("pointerenter", () => {
+            if (!reducedMotion.matches) void preview.play().catch(() => {});
+        });
+        card.addEventListener("pointerleave", () => preview.pause());
+        card.addEventListener("click", () => openVideoDetail(index, card));
+        fragment.append(card);
+    });
+    videoMosaicItems.replaceChildren(fragment);
+};
+
+const openVideoMosaic = () => {
+    if (!getActiveVideoCategory()?.videos.length || !videoMosaic) return;
+    videoDetailVideo?.pause();
+    videoGallery?.querySelectorAll("video").forEach((preview) => preview.pause());
+    renderVideoMosaic();
+    setVideoMode("gallery");
+    cleanUpVideoDetail();
+    videoCinema?.classList.remove("is-gallery-entering");
+    void videoCinema?.offsetWidth;
+    videoCinema?.classList.add("is-gallery-entering");
+    window.requestAnimationFrame(() => videoGalleryCloseButton?.focus({ preventScroll: true }));
+};
+
+const closeVideoMosaic = (immediate = false) => {
+    if (videoMode !== "gallery") return;
+    videoMosaicItems?.querySelectorAll("video").forEach((preview) => preview.pause());
+    setVideoMode("rail");
+    videoCinema?.classList.remove("is-gallery-entering");
+    void videoCinema?.offsetWidth;
+    videoCinema?.classList.add("is-rail-entering");
+    playActiveVideoPreview();
+    if (!immediate) videoPosterButtons[videoActiveIndex]?.focus({ preventScroll: true });
+};
+
+const toggleVideoWatch = () => {
+    if (!videoDetailVideo || videoMode !== "detail") return;
+    const label = videoWatchButton?.querySelector("span:first-child");
+    videoDetailVideo.controls = true;
+    videoDetailVideo.muted = false;
+    if (videoDetailVideo.paused) {
+        void videoDetailVideo.play();
+        videoWatchButton?.classList.add("is-playing");
+        if (label) label.textContent = "Pause";
+    } else {
+        videoDetailVideo.pause();
+        videoWatchButton?.classList.remove("is-playing");
+        if (label) label.textContent = "Watch";
+    }
+};
+
 const renderActiveVideoCategory = () => {
     const category = getActiveVideoCategory();
     if (!category || !videoGallery) return;
 
-    closeVideoViewer(true);
-    videoSection?.classList.remove("is-video-ready");
+    if (videoMode === "detail") closeVideoDetail(true);
+    if (videoMode === "gallery") closeVideoMosaic(true);
+    setVideoMode("rail");
+    cleanUpVideoDetail();
     videoCategoryName.textContent = category.name;
     videoCategoryCount.textContent = String(category.videos.length).padStart(2, "0");
 
     const cardFragment = document.createDocumentFragment();
     category.videos.forEach((entry, index) => {
-        const card = document.createElement("article");
-        card.className = "video-card";
-        card.style.setProperty("--video-card-index", index);
-
         const button = document.createElement("button");
-        button.className = "video-card__button";
+        button.className = "video-poster";
         button.type = "button";
-        button.setAttribute("aria-label", `Play ${entry.title}`);
-
-        const media = document.createElement("span");
-        media.className = "video-card__media";
+        button.dataset.videoIndex = index;
+        button.style.setProperty("--video-poster-index", index);
+        button.setAttribute("aria-label", `Focus ${entry.title}`);
 
         const preview = document.createElement("video");
-        preview.className = "video-card__preview";
+        preview.className = "video-poster__preview";
         preview.src = entry.src;
         preview.muted = true;
         preview.loop = true;
@@ -1561,36 +1715,41 @@ const renderActiveVideoCategory = () => {
         preview.setAttribute("aria-hidden", "true");
         preview.tabIndex = -1;
 
-        const play = document.createElement("span");
-        play.className = "video-card__play";
-        play.setAttribute("aria-hidden", "true");
-        play.innerHTML = '<svg viewBox="0 0 24 24"><path d="m8 5 11 7-11 7z"></path></svg>';
-
         const meta = document.createElement("span");
-        meta.className = "video-card__meta";
+        meta.className = "video-poster__meta";
 
         const number = document.createElement("span");
-        number.className = "video-card__number";
+        number.className = "video-poster__number";
         number.textContent = String(index + 1).padStart(2, "0");
 
         const title = document.createElement("span");
-        title.className = "video-card__title";
+        title.className = "video-poster__title";
         title.textContent = entry.title;
 
-        media.append(preview, play);
         meta.append(number, title);
-        button.append(media, meta);
-        card.append(button);
-        cardFragment.append(card);
+        button.append(preview, meta);
+        cardFragment.append(button);
 
-        bindVideoCardPreview(card, preview);
-        button.addEventListener("click", () => openVideoViewer(index, button));
+        button.addEventListener("pointerenter", () => setVideoActiveIndex(index, { scroll: false }));
+        button.addEventListener("focus", () => setVideoActiveIndex(index, { scroll: false }));
+        button.addEventListener("click", () => {
+            if (videoActiveIndex !== index) {
+                setVideoActiveIndex(index);
+                return;
+            }
+            openVideoDetail(index, button);
+        });
     });
 
     videoGallery.replaceChildren(cardFragment);
     videoGallery.setAttribute("aria-busy", "false");
-    void videoSection?.offsetWidth;
-    videoSection?.classList.add("is-video-ready");
+    videoPosterButtons = [...videoGallery.querySelectorAll(".video-poster")];
+    videoActiveIndex = Math.min(videoActiveIndex, Math.max(0, category.videos.length - 1));
+    renderVideoMosaic();
+    updateVideoRail({ scroll: false });
+    videoCinema?.classList.remove("is-rail-entering");
+    void videoCinema?.offsetWidth;
+    videoCinema?.classList.add("is-rail-entering");
 };
 
 const selectVideoCategory = (categoryId) => {
@@ -1627,18 +1786,18 @@ const renderVideoGallery = (manifest) => {
     const categoryFragment = document.createDocumentFragment();
     videoCategories.forEach((category, index) => {
         const button = document.createElement("button");
-        button.className = "video-categories__button";
+        button.className = "video-cinema__category";
         button.type = "button";
         button.dataset.videoCategory = category.id;
         button.setAttribute("role", "tab");
         button.setAttribute("aria-controls", "video-gallery-panel");
 
         const number = document.createElement("span");
-        number.className = "video-categories__number";
+        number.className = "video-cinema__category-number";
         number.textContent = String(index + 1).padStart(2, "0");
 
         const name = document.createElement("span");
-        name.className = "video-categories__name";
+        name.className = "video-cinema__category-name";
         name.textContent = category.name;
         button.append(number, name);
         button.addEventListener("click", () => selectVideoCategory(category.id));
@@ -1699,12 +1858,19 @@ const setVideoGalleryActive = (isActive) => {
     if (!videoSection) return;
 
     if (!isActive) {
-        closeVideoViewer(true);
+        if (videoMode === "detail") closeVideoDetail(true);
+        if (videoMode === "gallery") closeVideoMosaic(true);
+        setVideoMode("rail");
+        cleanUpVideoDetail();
         videoGallery?.querySelectorAll("video").forEach((preview) => preview.pause());
+        videoMosaicItems?.querySelectorAll("video").forEach((preview) => preview.pause());
         return;
     }
 
-    if (videoCategories.length > 0) renderActiveVideoCategory();
+    if (videoCategories.length > 0) {
+        renderActiveVideoCategory();
+        playActiveVideoPreview();
+    }
 };
 
 const showPage = (requestedPage, shouldScroll = true) => {
@@ -2043,10 +2209,30 @@ aiViewer?.addEventListener("click", (event) => {
     if (event.target.closest(".ai-viewer__image, .ai-viewer__close")) return;
     closeAIViewer();
 });
-videoViewerClose?.addEventListener("click", () => closeVideoViewer());
-videoViewerBackdrop?.addEventListener("click", () => closeVideoViewer());
-videoViewerPrevious?.addEventListener("click", () => moveVideoViewer(-1));
-videoViewerNext?.addEventListener("click", () => moveVideoViewer(1));
+videoPreviousButton?.addEventListener("click", () => setVideoActiveIndex(videoActiveIndex - 1, { focus: true }));
+videoNextButton?.addEventListener("click", () => setVideoActiveIndex(videoActiveIndex + 1, { focus: true }));
+videoDetailCloseButton?.addEventListener("click", () => closeVideoDetail());
+videoWatchButton?.addEventListener("click", toggleVideoWatch);
+videoGalleryOpenButton?.addEventListener("click", openVideoMosaic);
+videoDetailGalleryButton?.addEventListener("click", openVideoMosaic);
+videoGalleryCloseButton?.addEventListener("click", () => closeVideoMosaic());
+videoStage?.addEventListener("wheel", (event) => {
+    if (document.body.dataset.page !== "video-editing") return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (videoMode !== "rail") return;
+
+    const delta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
+    videoRailWheelDelta += delta;
+    window.clearTimeout(videoRailWheelTimer);
+    videoRailWheelTimer = window.setTimeout(() => {
+        videoRailWheelDelta = 0;
+    }, 180);
+    if (Math.abs(videoRailWheelDelta) < 36) return;
+
+    setVideoActiveIndex(videoActiveIndex + Math.sign(videoRailWheelDelta));
+    videoRailWheelDelta = 0;
+}, { passive: false });
 
 printObjects.forEach((printObject) => {
     printObject.addEventListener("click", () => openPrintViewer(printObject));
@@ -2098,7 +2284,7 @@ printViewerRotator?.addEventListener("pointercancel", stopPrintViewerDrag);
 
 document.addEventListener("wheel", (event) => {
     if (event.ctrlKey) return;
-    if (isSocialLightboxOpen() || isPrintViewerOpen() || isAIViewerOpen() || isVideoViewerOpen()) {
+    if (isSocialLightboxOpen() || isPrintViewerOpen() || isAIViewerOpen() || isVideoExperienceOpen()) {
         event.preventDefault();
         return;
     }
@@ -2159,37 +2345,33 @@ window.addEventListener("popstate", (event) => {
 });
 
 document.addEventListener("keydown", (event) => {
-    if (isVideoViewerOpen()) {
-        if (event.key === "Tab") {
-            const viewerControls = [
-                videoViewerClose,
-                videoViewerVideo,
-                videoViewerPrevious,
-                videoViewerNext
-            ].filter((control) => control && !control.disabled);
-            const currentControlIndex = viewerControls.indexOf(document.activeElement);
-            const nextControlIndex = event.shiftKey
-                ? (currentControlIndex <= 0 ? viewerControls.length - 1 : currentControlIndex - 1)
-                : (currentControlIndex >= viewerControls.length - 1 ? 0 : currentControlIndex + 1);
-
-            event.preventDefault();
-            viewerControls[nextControlIndex].focus();
-            return;
-        }
-
+    if (document.body.dataset.page === "video-editing") {
         if (event.key === "Escape") {
+            if (videoMode === "detail") {
+                event.preventDefault();
+                closeVideoDetail();
+                return;
+            }
+            if (videoMode === "gallery") {
+                event.preventDefault();
+                closeVideoMosaic();
+                return;
+            }
+        }
+
+        if (videoMode === "rail" && (event.key === "ArrowLeft" || event.key === "ArrowRight")) {
             event.preventDefault();
-            closeVideoViewer();
+            setVideoActiveIndex(videoActiveIndex + (event.key === "ArrowRight" ? 1 : -1), { focus: true });
             return;
         }
 
-        if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+        if (videoMode === "rail" && event.key === "Enter" && document.activeElement?.classList.contains("video-poster")) {
             event.preventDefault();
-            moveVideoViewer(event.key === "ArrowRight" ? 1 : -1);
+            openVideoDetail(videoActiveIndex, videoPosterButtons[videoActiveIndex]);
             return;
         }
 
-        if (["ArrowUp", "ArrowDown", "PageUp", "PageDown"].includes(event.key)) {
+        if (videoMode !== "rail" && ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "PageUp", "PageDown"].includes(event.key)) {
             event.preventDefault();
             return;
         }
