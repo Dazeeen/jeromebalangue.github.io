@@ -74,7 +74,6 @@ const contactForm = document.querySelector("[data-contact-form]");
 const contactFormStatus = document.querySelector("[data-contact-status]");
 const contactFormSubmit = contactForm?.querySelector('button[type="submit"]');
 const contactFormSubmitLabel = document.querySelector("[data-contact-submit-label]");
-const contactMailerFrame = document.querySelector('iframe[name="contact-mailer-frame"]');
 const contactMailerCapabilityFrame = document.querySelector('iframe[name="contact-mailer-capability-frame"]');
 const contactAttachmentInput = document.querySelector("[data-contact-attachment]");
 const contactAttachmentStatus = document.querySelector("[data-contact-attachment-status]");
@@ -2117,14 +2116,9 @@ window.addEventListener("message", (event) => {
         || !contactForm
     ) return;
 
-    const isCapabilityResponse = event.source === contactMailerCapabilityFrame?.contentWindow;
-    const isDeliveryResponse = event.source === contactMailerFrame?.contentWindow;
-    if (!isCapabilityResponse && !isDeliveryResponse) return;
-
-    if (isCapabilityResponse) {
+    if (event.data.type === "capabilities") {
         contactMailerCapabilityProbePending = false;
-        contactDocumentAttachmentsEnabled = event.data.type === "capabilities"
-            && event.data.documentAttachments === true
+        contactDocumentAttachmentsEnabled = event.data.documentAttachments === true
             && Number(event.data.maxAttachmentBytes) >= CONTACT_ATTACHMENT_MAX_BYTES;
         contactAttachmentInput.disabled = !contactDocumentAttachmentsEnabled;
         if (contactDocumentAttachmentsEnabled) {
@@ -2137,6 +2131,10 @@ window.addEventListener("message", (event) => {
         }
         return;
     }
+
+    const isDeliveryResponse = event.data.type === "result"
+        || (!event.data.type && contactForm.dataset.state === "sending");
+    if (!isDeliveryResponse) return;
 
     clearContactMailerTimeout();
     contactFormSubmit.disabled = false;

@@ -44,9 +44,11 @@ test("the line-style contact form sends through the custom Apps Script mailer", 
     assert.match(script, /window\.location\.origin !== CONTACT_SITE_ORIGIN/u);
     assert.match(script, /window\.addEventListener\("message"/u);
     assert.match(script, /event\.data\.source !== CONTACT_MAILER_SOURCE/u);
-    assert.match(script, /event\.source === contactMailerCapabilityFrame\?\.contentWindow/u);
+    assert.match(script, /event\.data\.type === "capabilities"/u);
     assert.match(script, /event\.data\.documentAttachments === true/u);
     assert.match(script, /contactAttachmentInput\.disabled = !contactDocumentAttachmentsEnabled/u);
+    assert.match(script, /event\.data\.type === "result"/u);
+    assert.doesNotMatch(script, /event\.source === contactMailer/u);
     assert.match(script, /HTMLFormElement\.prototype\.submit\.call\(contactForm\)/u);
     assert.match(script, /contactForm\.dataset\.state = "sending"/u);
     assert.match(script, /contactForm\.dataset\.state = "success"/u);
@@ -65,5 +67,5 @@ test("the reference-inspired composition is responsive and cache-busted", () => 
     assert.match(css, /@media \(max-width: 720px\)\s*\{[\s\S]*?\.contact-section/u);
     assert.match(css, /\.contact-form__file-input::file-selector-button/u);
     assert.match(html, /static\/css\/main\.css\?v=1\.0\.45/u);
-    assert.match(html, /static\/js\/main\.js\?v=1\.0\.38/u);
+    assert.match(html, /static\/js\/main\.js\?v=1\.0\.39/u);
 });
