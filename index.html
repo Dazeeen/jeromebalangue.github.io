@@ -9,7 +9,7 @@
     <script src="static/js/head.js"></script>
     <link rel="preload" href="static/fonts/manrope-latin.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="preload" href="static/fonts/pinyon-script-latin.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="stylesheet" href="static/css/main.css?v=1.0.31">
+    <link rel="stylesheet" href="static/css/main.css?v=1.0.44">
     <link rel="preload" href="static/media/images/site/portfolio-background.png" as="image">
     <link rel="preload" href="static/media/images/home/jerome-hero-cutout.png" as="image">
     <link rel="preload" href="static/media/images/about/jerome-laptop-cutout.png" as="image">
@@ -413,10 +413,6 @@
                 <nav class="video-cinema__sidebar" aria-label="Video editing categories">
                     <p class="video-cinema__sidebar-label">Collections</p>
                     <div class="video-cinema__category-list" data-video-categories aria-busy="true"></div>
-                    <button class="video-cinema__gallery-link" type="button" data-video-gallery-open>
-                        <span aria-hidden="true">+</span>
-                        <span>Gallery</span>
-                    </button>
                 </nav>
 
                 <div class="video-cinema__stage" data-video-stage>
@@ -443,7 +439,7 @@
                     </div>
 
                     <article class="video-cinema__detail" data-video-detail aria-hidden="true">
-                        <video class="video-cinema__detail-video" data-video-detail-video muted loop playsinline
+                        <video class="video-cinema__detail-video" data-video-detail-video loop playsinline
                             preload="metadata"></video>
                         <span class="video-cinema__detail-shade" aria-hidden="true"></span>
 
@@ -458,28 +454,11 @@
                             <span class="video-cinema__action-ring" aria-hidden="true"></span>
                         </button>
 
-                        <button class="video-cinema__detail-action video-cinema__detail-action--gallery" type="button"
-                            data-video-detail-gallery>
-                            <span>View Gallery</span>
-                            <span class="video-cinema__action-ring" aria-hidden="true"></span>
-                        </button>
-
                         <button class="video-cinema__back" type="button" data-video-detail-close>
                             <span aria-hidden="true">&larr;</span>
                             <span>Back to titles</span>
                         </button>
                     </article>
-
-                    <section class="video-cinema__mosaic" data-video-mosaic aria-labelledby="video-gallery-title"
-                        aria-hidden="true">
-                        <h3 class="video-cinema__mosaic-title" id="video-gallery-title">Gallery</h3>
-                        <div class="video-cinema__mosaic-items" data-video-mosaic-items></div>
-                        <button class="video-cinema__back video-cinema__back--gallery" type="button"
-                            data-video-gallery-close>
-                            <span aria-hidden="true">&larr;</span>
-                            <span>Back to titles</span>
-                        </button>
-                    </section>
                 </div>
             </div>
 
@@ -492,6 +471,185 @@
                     <span data-video-category-count>00</span>
                 </p>
             </footer>
+        </div>
+    </section>
+
+    <section class="why-section page-view" id="why-work-with-me" data-page="why-work-with-me"
+        aria-labelledby="why-title">
+        <div class="why-section__inner">
+            <header class="why-section__header">
+                <p class="why-section__eyebrow">07 / The value I bring</p>
+                <h2 class="why-section__title" id="why-title">
+                    Why work <span>with me?</span>
+                </h2>
+            </header>
+
+            <div class="why-stage">
+                <span class="why-stage__orbit why-stage__orbit--outer" aria-hidden="true"></span>
+                <span class="why-stage__orbit why-stage__orbit--inner" aria-hidden="true"></span>
+
+                <figure class="why-portrait">
+                    <span class="why-portrait__backdrop" aria-hidden="true"></span>
+                    <div class="why-portrait__blob">
+                        <span class="why-portrait__shine" aria-hidden="true"></span>
+                        <img class="why-portrait__image" src="static/media/images/about/jerome-laptop-cutout.png"
+                            alt="Jerome Balangue holding an open laptop" width="910" height="959" loading="lazy">
+                    </div>
+                    <figcaption class="why-portrait__caption">
+                        <strong>Jerome Balangue</strong>
+                        <span>Graphic Artist &amp; Video Editor</span>
+                    </figcaption>
+                </figure>
+
+                <ul class="why-values" aria-label="What I bring">
+                    <li class="why-value why-value--creative">
+                        <strong>Creative</strong>
+                        <span>problem-solving</span>
+                    </li>
+                    <li class="why-value why-value--detail">
+                        <strong>Attention</strong>
+                        <span>to detail</span>
+                    </li>
+                    <li class="why-value why-value--communication">
+                        <strong>Fast</strong>
+                        <span>communication</span>
+                    </li>
+                    <li class="why-value why-value--branding">
+                        <strong>Consistent</strong>
+                        <span>branding</span>
+                    </li>
+                    <li class="why-value why-value--trend">
+                        <strong>Trend-aware</strong>
+                        <span>design</span>
+                    </li>
+                    <li class="why-value why-value--ai">
+                        <strong>A.I.-assisted</strong>
+                        <span>fast design</span>
+                    </li>
+                </ul>
+
+                <ul class="why-tools" aria-label="Tools I use">
+                    <li class="why-tool why-tool--capcut">
+                        <svg viewBox="0 0 48 48" aria-hidden="true">
+                            <path d="M8 13h31L10 35h30M8 13l31 22"></path>
+                        </svg>
+                        <span>CapCut</span>
+                    </li>
+                    <li class="why-tool why-tool--canva">
+                        <span class="why-tool__canva-wordmark">Canva</span>
+                    </li>
+                    <li class="why-tool why-tool--chatgpt">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M22.281 9.821a5.984 5.984 0 0 0-.515-4.91 6.046 6.046 0 0 0-6.51-2.9A6.065 6.065 0 0 0 4.981 4.18a5.984 5.984 0 0 0-3.998 2.9 6.046 6.046 0 0 0 .743 7.097 5.98 5.98 0 0 0 .51 4.911 6.078 6.078 0 0 0 6.53 2.9 5.991 5.991 0 0 0 4.014 1.029 6.046 6.046 0 0 0 5.275-4.068 5.99 5.99 0 0 0 3.998-2.9 6.056 6.056 0 0 0-.772-7.228Zm-9.569 11.075a4.004 4.004 0 0 1-2.571-.9l.127-.073 4.274-2.459a.696.696 0 0 0 .35-.61v-5.998l1.806 1.042a.064.064 0 0 1 .033.055v4.967a4.033 4.033 0 0 1-4.019 3.976ZM3.322 18.077a3.99 3.99 0 0 1-.48-2.573l.127.076 4.273 2.459a.694.694 0 0 0 .71 0l5.195-2.999v2.086a.062.062 0 0 1-.032.056L8.812 19.66a4.033 4.033 0 0 1-5.49-1.583ZM2.18 7.834A4.007 4.007 0 0 1 4.273 6.16v5.083a.7.7 0 0 0 .349.61l5.194 2.999-1.806 1.042a.064.064 0 0 1-.063 0l-4.306-2.487A4.033 4.033 0 0 1 2.18 7.834Zm15.609 4.291-5.195-3.001 1.806-1.041a.064.064 0 0 1 .063 0l4.306 2.489a4.033 4.033 0 0 1-.61 7.108v-4.858a.694.694 0 0 0-.35-.61Zm1.47-3.464-.127-.076-4.273-2.459a.694.694 0 0 0-.71 0L8.954 9.125V7.039a.062.062 0 0 1 .032-.056l4.306-2.486a4.033 4.033 0 0 1 5.967 4.164ZM7.35 13.145l-1.806-1.042a.064.064 0 0 1-.033-.055V7.08a4.033 4.033 0 0 1 6.591-3.074l-.127.074L7.7 6.538a.697.697 0 0 0-.35.61Zm.984-2.881 2.313-1.335 2.313 1.335v2.67l-2.313 1.335-2.313-1.335Z"></path>
+                        </svg>
+                        <span>ChatGPT</span>
+                    </li>
+                    <li class="why-tool why-tool--gemini">
+                        <svg viewBox="0 0 48 48" aria-hidden="true">
+                            <path d="M24 5c1.8 11 7 16.2 18 18-11 1.8-16.2 7-18 18-1.8-11-7-16.2-18-18C17 21.2 22.2 16 24 5Z"></path>
+                        </svg>
+                        <span>Gemini</span>
+                    </li>
+                </ul>
+
+                <div class="why-particles" aria-hidden="true">
+                    <span class="why-particle why-particle--one"></span>
+                    <span class="why-particle why-particle--two"></span>
+                    <span class="why-particle why-particle--three"></span>
+                    <span class="why-particle why-particle--four"></span>
+                    <span class="why-particle why-particle--five"></span>
+                    <span class="why-particle why-particle--six"></span>
+                    <span class="why-particle why-particle--seven"></span>
+                    <span class="why-particle why-particle--eight"></span>
+                </div>
+            </div>
+
+            <aside class="why-mission" aria-label="My mission">
+                <p class="why-mission__label">My mission</p>
+                <p class="why-mission__copy">
+                    To help brands grow through strategic and visually compelling design solutions.
+                </p>
+            </aside>
+
+            <span class="why-section__index" aria-hidden="true">[7]</span>
+        </div>
+    </section>
+
+    <section class="contact-section page-view" id="contact-collaboration" data-page="contact-collaboration"
+        aria-labelledby="contact-title">
+        <div class="contact-section__shell">
+            <form class="contact-form" action="https://formsubmit.co/ajax/balanguejerome@gmail.com" method="POST"
+                data-contact-form>
+                <header class="contact-form__header">
+                    <p class="contact-form__eyebrow">08 / Start a conversation</p>
+                    <h3>Tell me about your project.</h3>
+                </header>
+
+                <div class="contact-form__field">
+                    <label for="contact-name">Your Name</label>
+                    <input id="contact-name" name="name" type="text" autocomplete="name" required>
+                </div>
+
+                <div class="contact-form__field">
+                    <label for="contact-email">Your Email</label>
+                    <input id="contact-email" name="email" type="email" autocomplete="email" required>
+                </div>
+
+                <div class="contact-form__field contact-form__field--message">
+                    <label for="contact-message">Share your thoughts</label>
+                    <textarea id="contact-message" name="message" rows="3" required></textarea>
+                </div>
+
+                <input type="hidden" name="_subject" value="New portfolio collaboration inquiry">
+                <input type="hidden" name="_template" value="table">
+                <input type="hidden" name="_url" value="https://jeromebalangue.github.io/">
+                <input class="contact-form__honey" type="text" name="_honey" tabindex="-1" autocomplete="off"
+                    aria-hidden="true">
+
+                <button class="contact-form__submit" type="submit">
+                    <span data-contact-submit-label>Share your feedback</span>
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M5 12h13M13 6l6 6-6 6"></path>
+                    </svg>
+                </button>
+                <p class="contact-form__status" data-contact-status aria-live="polite">
+                    Your message will be sent directly to Jerome's inbox.
+                </p>
+            </form>
+
+            <div class="contact-intro">
+                <span class="contact-intro__shape" aria-hidden="true"></span>
+
+                <p class="contact-intro__eyebrow">Contact &amp; Collaboration</p>
+                <h2 class="contact-intro__title" id="contact-title">
+                    <span>Contact</span>
+                    <span class="contact-intro__title-line"><i aria-hidden="true"></i>Us</span>
+                </h2>
+
+                <div class="contact-intro__details">
+                    <p>
+                        Available for freelance projects, brand collaborations, video edits,
+                        social media design work, and creative partnerships.
+                    </p>
+
+                    <address class="contact-intro__channels">
+                        <a href="mailto:balanguejerome@gmail.com">
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M3 5h18v14H3zM3 6l9 7 9-7"></path>
+                            </svg>
+                            <span>balanguejerome@gmail.com</span>
+                        </a>
+                        <a href="tel:+639085459038">
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M7.4 3.5 10 8 7.9 9.8c1.4 2.8 3.5 4.9 6.3 6.3L16 14l4.5 2.6-.8 3.4c-.2.8-.9 1.3-1.7 1.3C9.5 20.8 3.2 14.5 2.7 6c0-.8.5-1.5 1.3-1.7z"></path>
+                            </svg>
+                            <span>+63 908-545-9038</span>
+                        </a>
+                    </address>
+                </div>
+            </div>
+
+            <span class="contact-section__index" aria-hidden="true">[8]</span>
         </div>
     </section>
 
@@ -637,7 +795,7 @@
     <script src="static/media/images/social-media-designs/gallery-data.js?v=1.0.16"></script>
     <script src="static/media/images/AI_generated_design/gallery-data.js?v=1.0.21"></script>
     <script src="static/media/videos/gallery-data.js?v=1.0.1"></script>
-    <script src="static/js/main.js?v=1.0.28"></script>
+    <script src="static/js/main.js?v=1.0.36"></script>
 </body>
 
 </html>

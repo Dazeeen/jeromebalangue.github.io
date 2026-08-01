@@ -2,6 +2,7 @@
 const PrintWebGLViewer = window.Print3D?.PrintWebGLViewer;
 const navToggle = document.querySelector(".nav-toggle");
 const sidebar = document.querySelector(".toc-sidebar");
+const sidebarNav = sidebar.querySelector(".toc-sidebar__nav");
 const scrim = document.querySelector(".toc-scrim");
 const navLabel = navToggle.querySelector(".sr-only");
 const pageViews = [...document.querySelectorAll(".page-view")];
@@ -60,7 +61,6 @@ const videoGallery = document.querySelector("[data-video-gallery]");
 const videoCategoryName = document.querySelector("[data-video-category-name]");
 const videoCategoryCount = document.querySelector("[data-video-category-count]");
 const videoCinema = document.querySelector("[data-video-cinema]");
-const videoStage = document.querySelector("[data-video-stage]");
 const videoPreviousButton = document.querySelector("[data-video-previous]");
 const videoNextButton = document.querySelector("[data-video-next]");
 const videoCurrentNumber = document.querySelector("[data-video-current]");
@@ -69,12 +69,11 @@ const videoDetailVideo = document.querySelector("[data-video-detail-video]");
 const videoDetailTitle = document.querySelector("[data-video-detail-title]");
 const videoDetailCategory = document.querySelector("[data-video-detail-category]");
 const videoWatchButton = document.querySelector("[data-video-watch]");
-const videoDetailGalleryButton = document.querySelector("[data-video-detail-gallery]");
 const videoDetailCloseButton = document.querySelector("[data-video-detail-close]");
-const videoGalleryOpenButton = document.querySelector("[data-video-gallery-open]");
-const videoGalleryCloseButton = document.querySelector("[data-video-gallery-close]");
-const videoMosaic = document.querySelector("[data-video-mosaic]");
-const videoMosaicItems = document.querySelector("[data-video-mosaic-items]");
+const contactForm = document.querySelector("[data-contact-form]");
+const contactFormStatus = document.querySelector("[data-contact-status]");
+const contactFormSubmit = contactForm?.querySelector('button[type="submit"]');
+const contactFormSubmitLabel = document.querySelector("[data-contact-submit-label]");
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 let lastTypedCharacter = null;
 let aboutRevealFrame = null;
@@ -117,8 +116,6 @@ let videoPosterButtons = [];
 let videoMode = "rail";
 let videoDetailSource = null;
 let videoDetailAnimation = null;
-let videoRailWheelDelta = 0;
-let videoRailWheelTimer = null;
 let requestedVideoCategoryId = "";
 const aiCardEntries = new WeakMap();
 const aiFloatSequenceTimers = new Set();
@@ -226,7 +223,9 @@ const pageTitles = {
     "social-media-design": "Social Media Designs | Jerome Balangue",
     "print-marketing-materials": "Print & Marketing Materials | Jerome Balangue",
     "ai-generated-design": "A.I. Generated Design | Jerome Balangue",
-    "video-editing": "Video Editing | Jerome Balangue"
+    "video-editing": "Video Editing | Jerome Balangue",
+    "why-work-with-me": "Why Work With Me | Jerome Balangue",
+    "contact-collaboration": "Contact & Collaboration | Jerome Balangue"
 };
 const cleanPageUrl = `${window.location.pathname}${window.location.search}`;
 const PAGE_SCROLL_EDGE_TOLERANCE = 1;
@@ -1432,6 +1431,28 @@ const getActiveVideoCategory = () => videoCategories.find((category) => (
 
 const isVideoExperienceOpen = () => videoMode !== "rail";
 
+const clearVideoOrientation = (frame) => {
+    if (!frame) return;
+    frame.classList.remove("is-portrait", "is-landscape", "is-square");
+    frame.style.removeProperty("--video-aspect-ratio");
+};
+
+const syncVideoOrientation = (video, frame) => {
+    if (!video || !frame || !video.videoWidth || !video.videoHeight) return false;
+
+    const { videoWidth, videoHeight } = video;
+    const orientation = videoHeight > videoWidth
+        ? "portrait"
+        : videoWidth > videoHeight
+            ? "landscape"
+            : "square";
+
+    clearVideoOrientation(frame);
+    frame.classList.add(`is-${orientation}`);
+    frame.style.setProperty("--video-aspect-ratio", `${videoWidth} / ${videoHeight}`);
+    return true;
+};
+
 const pauseVideoPreview = (preview, reset = false) => {
     preview.pause();
     if (!reset || !Number.isFinite(preview.duration)) return;
@@ -1441,6 +1462,12 @@ const pauseVideoPreview = (preview, reset = false) => {
     } catch {
         // A thumbnail seek can fail while a browser is still reading metadata.
     }
+};
+
+const setVideoWatchButtonState = (isPlaying) => {
+    videoWatchButton?.classList.toggle("is-playing", isPlaying);
+    const label = videoWatchButton?.querySelector("span:first-child");
+    if (label) label.textContent = isPlaying ? "Pause" : "Watch";
 };
 
 const cleanUpVideoDetail = () => {
@@ -1453,9 +1480,8 @@ const cleanUpVideoDetail = () => {
         videoDetailVideo.muted = true;
         videoDetailVideo.load();
     }
-    videoWatchButton?.classList.remove("is-playing");
-    const label = videoWatchButton?.querySelector("span:first-child");
-    if (label) label.textContent = "Watch";
+    clearVideoOrientation(videoDetail);
+    setVideoWatchButtonState(false);
 };
 
 const showVideoGalleryStatus = (message) => {
@@ -1470,9 +1496,7 @@ const showVideoGalleryStatus = (message) => {
 const setVideoMode = (mode) => {
     videoMode = mode;
     if (videoCinema) videoCinema.dataset.mode = mode;
-    document.body.classList.toggle("video-gallery-open", mode === "gallery");
     videoDetail?.setAttribute("aria-hidden", String(mode !== "detail"));
-    videoMosaic?.setAttribute("aria-hidden", String(mode !== "gallery"));
 };
 
 const playActiveVideoPreview = () => {
@@ -1563,16 +1587,23 @@ const openVideoDetail = (index = videoActiveIndex, source = videoPosterButtons[i
     videoDetailSource = source;
     videoDetailTitle.textContent = entry.title;
     videoDetailCategory.textContent = category.name;
+    clearVideoOrientation(videoDetail);
+    syncVideoOrientation(sourcePreview, videoDetail);
     videoDetailVideo.src = entry.src;
+    videoDetailVideo.controls = true;
+    videoDetailVideo.muted = false;
     videoDetailVideo.load();
     videoDetailVideo.addEventListener("loadedmetadata", () => {
+        syncVideoOrientation(videoDetailVideo, videoDetail);
         if (Number.isFinite(videoDetailVideo.duration)) {
             videoDetailVideo.currentTime = Math.min(sourceTime, Math.max(0, videoDetailVideo.duration - 0.1));
         }
-        void videoDetailVideo.play().catch(() => {
-            // The Watch control remains available if muted autoplay is unavailable.
-        });
     }, { once: true });
+    setVideoWatchButtonState(true);
+    void videoDetailVideo.play().catch(() => {
+        // Native controls and the Watch button remain available if playback is blocked.
+        setVideoWatchButtonState(false);
+    });
 
     videoGallery?.querySelectorAll("video").forEach((preview) => preview.pause());
     setVideoMode("detail");
@@ -1594,10 +1625,7 @@ const closeVideoDetail = (immediate = false) => {
         setVideoMode("rail");
         cleanUpVideoDetail();
         playActiveVideoPreview();
-        const focusTarget = source?.classList.contains("video-mosaic-card")
-            ? videoPosterButtons[videoActiveIndex]
-            : source;
-        if (!immediate && focusTarget?.isConnected) focusTarget.focus({ preventScroll: true });
+        if (!immediate && source?.isConnected) source.focus({ preventScroll: true });
         videoDetailSource = null;
     };
 
@@ -1612,76 +1640,16 @@ const closeVideoDetail = (immediate = false) => {
     animation.addEventListener("finish", finish, { once: true });
 };
 
-const renderVideoMosaic = () => {
-    const category = getActiveVideoCategory();
-    if (!category || !videoMosaicItems) return;
-
-    const fragment = document.createDocumentFragment();
-    category.videos.forEach((entry, index) => {
-        const card = document.createElement("button");
-        card.className = "video-mosaic-card";
-        card.type = "button";
-        card.style.setProperty("--video-mosaic-index", index);
-        card.setAttribute("aria-label", `Open ${entry.title}`);
-
-        const preview = document.createElement("video");
-        preview.src = entry.src;
-        preview.muted = true;
-        preview.playsInline = true;
-        preview.preload = "metadata";
-        preview.tabIndex = -1;
-        preview.setAttribute("aria-hidden", "true");
-
-        const title = document.createElement("span");
-        title.textContent = entry.title;
-        card.append(preview, title);
-        card.addEventListener("pointerenter", () => {
-            if (!reducedMotion.matches) void preview.play().catch(() => {});
-        });
-        card.addEventListener("pointerleave", () => preview.pause());
-        card.addEventListener("click", () => openVideoDetail(index, card));
-        fragment.append(card);
-    });
-    videoMosaicItems.replaceChildren(fragment);
-};
-
-const openVideoMosaic = () => {
-    if (!getActiveVideoCategory()?.videos.length || !videoMosaic) return;
-    videoDetailVideo?.pause();
-    videoGallery?.querySelectorAll("video").forEach((preview) => preview.pause());
-    renderVideoMosaic();
-    setVideoMode("gallery");
-    cleanUpVideoDetail();
-    videoCinema?.classList.remove("is-gallery-entering");
-    void videoCinema?.offsetWidth;
-    videoCinema?.classList.add("is-gallery-entering");
-    window.requestAnimationFrame(() => videoGalleryCloseButton?.focus({ preventScroll: true }));
-};
-
-const closeVideoMosaic = (immediate = false) => {
-    if (videoMode !== "gallery") return;
-    videoMosaicItems?.querySelectorAll("video").forEach((preview) => preview.pause());
-    setVideoMode("rail");
-    videoCinema?.classList.remove("is-gallery-entering");
-    void videoCinema?.offsetWidth;
-    videoCinema?.classList.add("is-rail-entering");
-    playActiveVideoPreview();
-    if (!immediate) videoPosterButtons[videoActiveIndex]?.focus({ preventScroll: true });
-};
-
 const toggleVideoWatch = () => {
     if (!videoDetailVideo || videoMode !== "detail") return;
-    const label = videoWatchButton?.querySelector("span:first-child");
     videoDetailVideo.controls = true;
     videoDetailVideo.muted = false;
     if (videoDetailVideo.paused) {
-        void videoDetailVideo.play();
-        videoWatchButton?.classList.add("is-playing");
-        if (label) label.textContent = "Pause";
+        void videoDetailVideo.play().catch(() => setVideoWatchButtonState(false));
+        setVideoWatchButtonState(true);
     } else {
         videoDetailVideo.pause();
-        videoWatchButton?.classList.remove("is-playing");
-        if (label) label.textContent = "Watch";
+        setVideoWatchButtonState(false);
     }
 };
 
@@ -1690,7 +1658,6 @@ const renderActiveVideoCategory = () => {
     if (!category || !videoGallery) return;
 
     if (videoMode === "detail") closeVideoDetail(true);
-    if (videoMode === "gallery") closeVideoMosaic(true);
     setVideoMode("rail");
     cleanUpVideoDetail();
     videoCategoryName.textContent = category.name;
@@ -1745,7 +1712,6 @@ const renderActiveVideoCategory = () => {
     videoGallery.setAttribute("aria-busy", "false");
     videoPosterButtons = [...videoGallery.querySelectorAll(".video-poster")];
     videoActiveIndex = Math.min(videoActiveIndex, Math.max(0, category.videos.length - 1));
-    renderVideoMosaic();
     updateVideoRail({ scroll: false });
     videoCinema?.classList.remove("is-rail-entering");
     void videoCinema?.offsetWidth;
@@ -1859,11 +1825,9 @@ const setVideoGalleryActive = (isActive) => {
 
     if (!isActive) {
         if (videoMode === "detail") closeVideoDetail(true);
-        if (videoMode === "gallery") closeVideoMosaic(true);
         setVideoMode("rail");
         cleanUpVideoDetail();
         videoGallery?.querySelectorAll("video").forEach((preview) => preview.pause());
-        videoMosaicItems?.querySelectorAll("video").forEach((preview) => preview.pause());
         return;
     }
 
@@ -1993,6 +1957,20 @@ navToggle.addEventListener("click", () => {
 
 scrim.addEventListener("click", () => setSidebarOpen(false));
 
+sidebar.addEventListener("wheel", (event) => {
+    if (event.ctrlKey || event.deltaY === 0) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const deltaMultiplier = event.deltaMode === WheelEvent.DOM_DELTA_LINE
+        ? 16
+        : event.deltaMode === WheelEvent.DOM_DELTA_PAGE
+            ? sidebarNav.clientHeight
+            : 1;
+    sidebarNav.scrollTop += event.deltaY * deltaMultiplier;
+}, { passive: false });
+
 document.addEventListener("click", (event) => {
     if (
         sidebar.dataset.open === "true" &&
@@ -2010,6 +1988,64 @@ pageLinks.forEach((link) => {
         navigateToPage(pageId);
         setSidebarOpen(false);
     });
+});
+
+contactForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (contactForm.dataset.state === "sending") return;
+
+    const formData = new FormData(contactForm);
+    const name = String(formData.get("name") || "").trim();
+    const email = String(formData.get("email") || "").trim();
+    const message = String(formData.get("message") || "").trim();
+    if (!name || !email || !message) return;
+
+    if (window.location.protocol === "file:") {
+        contactForm.dataset.state = "error";
+        contactFormSubmitLabel.textContent = "Use hosted site";
+        contactFormStatus.textContent = "Email sending only works from GitHub Pages or a local web server, not a directly opened HTML file.";
+        return;
+    }
+
+    const payload = Object.fromEntries(formData.entries());
+    payload._subject = `Portfolio collaboration inquiry from ${name}`;
+
+    contactForm.dataset.state = "sending";
+    contactFormSubmit.disabled = true;
+    contactFormSubmitLabel.textContent = "Sending...";
+    contactFormStatus.textContent = "Sending your message securely...";
+
+    try {
+        const response = await fetch(contactForm.action, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Accept: "application/json"
+            },
+            body: JSON.stringify(payload)
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || result.success === false || result.success === "false") {
+            throw new Error(result.message || "The message could not be delivered.");
+        }
+
+        contactForm.reset();
+        contactForm.dataset.state = "success";
+        contactFormSubmitLabel.textContent = "Message submitted";
+        contactFormStatus.textContent = "Thank you! Your message was submitted successfully.";
+    } catch (error) {
+        contactForm.dataset.state = "error";
+        contactFormSubmitLabel.textContent = "Try again";
+        if (!navigator.onLine) {
+            contactFormStatus.textContent = "You appear to be offline. Reconnect and try again.";
+        } else if (error instanceof Error && error.message && error.message !== "Failed to fetch") {
+            contactFormStatus.textContent = `Unable to send: ${error.message}`;
+        } else {
+            contactFormStatus.textContent = "The email service could not be reached. Please try again in a moment.";
+        }
+    } finally {
+        contactFormSubmit.disabled = false;
+    }
 });
 
 const bindSocialFilterButton = (button) => {
@@ -2213,26 +2249,8 @@ videoPreviousButton?.addEventListener("click", () => setVideoActiveIndex(videoAc
 videoNextButton?.addEventListener("click", () => setVideoActiveIndex(videoActiveIndex + 1, { focus: true }));
 videoDetailCloseButton?.addEventListener("click", () => closeVideoDetail());
 videoWatchButton?.addEventListener("click", toggleVideoWatch);
-videoGalleryOpenButton?.addEventListener("click", openVideoMosaic);
-videoDetailGalleryButton?.addEventListener("click", openVideoMosaic);
-videoGalleryCloseButton?.addEventListener("click", () => closeVideoMosaic());
-videoStage?.addEventListener("wheel", (event) => {
-    if (document.body.dataset.page !== "video-editing") return;
-    event.preventDefault();
-    event.stopPropagation();
-    if (videoMode !== "rail") return;
-
-    const delta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
-    videoRailWheelDelta += delta;
-    window.clearTimeout(videoRailWheelTimer);
-    videoRailWheelTimer = window.setTimeout(() => {
-        videoRailWheelDelta = 0;
-    }, 180);
-    if (Math.abs(videoRailWheelDelta) < 36) return;
-
-    setVideoActiveIndex(videoActiveIndex + Math.sign(videoRailWheelDelta));
-    videoRailWheelDelta = 0;
-}, { passive: false });
+videoDetailVideo?.addEventListener("play", () => setVideoWatchButtonState(true));
+videoDetailVideo?.addEventListener("pause", () => setVideoWatchButtonState(false));
 
 printObjects.forEach((printObject) => {
     printObject.addEventListener("click", () => openPrintViewer(printObject));
@@ -2288,11 +2306,7 @@ document.addEventListener("wheel", (event) => {
         event.preventDefault();
         return;
     }
-    if (
-        sidebar.dataset.open === "true" &&
-        event.target instanceof Element &&
-        event.target.closest(".toc-sidebar__nav")
-    ) return;
+    if (event.target instanceof Element && event.target.closest(".toc-sidebar")) return;
 
     event.preventDefault();
     if (pageNavigationLocked || event.deltaY === 0) return;
@@ -2350,11 +2364,6 @@ document.addEventListener("keydown", (event) => {
             if (videoMode === "detail") {
                 event.preventDefault();
                 closeVideoDetail();
-                return;
-            }
-            if (videoMode === "gallery") {
-                event.preventDefault();
-                closeVideoMosaic();
                 return;
             }
         }

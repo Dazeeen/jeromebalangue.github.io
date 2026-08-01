@@ -95,18 +95,18 @@ test("the page renders one dynamic categorized Video Editing view", async () => 
     assert.match(script, /window\.VIDEO_GALLERY_MANIFEST/u);
     assert.match(script, /renderVideoGallery/u);
     assert.match(script, /openVideoDetail/u);
-    assert.match(script, /openVideoMosaic/u);
     assert.match(script, /setVideoMode/u);
     assert.match(script, /setVideoGalleryActive/u);
     assert.match(html, /data-video-cinema data-mode="rail"/u);
     assert.match(html, /data-video-detail/u);
-    assert.match(html, /data-video-mosaic/u);
+    assert.doesNotMatch(html, /data-video-gallery-open|data-video-detail-gallery|data-video-mosaic/u);
+    assert.doesNotMatch(script, /openVideoMosaic|closeVideoMosaic|renderVideoMosaic/u);
     assert.doesNotMatch(html, /class="video-viewer/u);
     assert.match(stylesheet, /\.video-cinema\s*\{[^}]*grid-template-rows:/su);
     assert.match(stylesheet, /\.video-poster\.is-active/u);
     assert.match(stylesheet, /@keyframes video-poster-rebuild/u);
     assert.match(stylesheet, /\.video-cinema\[data-mode="detail"\] \.video-cinema__detail/u);
-    assert.match(stylesheet, /@keyframes video-mosaic-rise/u);
+    assert.doesNotMatch(stylesheet, /video-cinema__mosaic|video-mosaic-card|video-gallery-open/u);
     assert.match(stylesheet, /@media \(max-width: 720px\)[\s\S]*\.video-cinema__category-list\s*\{[^}]*overflow-x:\s*auto;/u);
 });
 
@@ -131,4 +131,36 @@ test("Video Editing is reachable through current and legacy navigation targets",
     assert.match(script, /\.map\(\(link\) => resolvePageId\(/u);
     assert.match(script, /const pageId = resolvePageId\(requestedPage\);/u);
     assert.match(script, /showPage\(initialPageId === "home" \? "home" : initialPageRequest, false\)/u);
+});
+
+test("portrait videos keep their native orientation in the detail viewer", async () => {
+    const script = await readFile(path.join(projectRoot, "static", "js", "main.js"), "utf8");
+    const stylesheet = await readFile(path.join(projectRoot, "static", "css", "main.css"), "utf8");
+
+    assert.match(script, /const syncVideoOrientation = \(video, frame\)/u);
+    assert.match(script, /videoHeight > videoWidth\s*\? "portrait"/u);
+    assert.match(script, /syncVideoOrientation\(videoDetailVideo, videoDetail\)/u);
+    assert.match(
+        stylesheet,
+        /\.video-cinema__detail-video\s*\{[^}]*object-fit:\s*contain;/su
+    );
+    assert.match(
+        stylesheet,
+        /\.video-cinema__detail\.is-portrait \.video-cinema__detail-video\s*\{[^}]*aspect-ratio:\s*var\(--video-aspect-ratio\);/su
+    );
+});
+
+test("Video Editing uses the curtain, ignores rail wheel selection, and unmutes clicked videos", async () => {
+    const html = await readFile(path.join(projectRoot, "index.html"), "utf8");
+    const script = await readFile(path.join(projectRoot, "static", "js", "main.js"), "utf8");
+    const stylesheet = await readFile(path.join(projectRoot, "static", "css", "main.css"), "utf8");
+
+    assert.match(
+        stylesheet,
+        /\.video-cinema\s*\{[^}]*portfolio-background\.png[^}]*background-size:\s*cover;/su
+    );
+    assert.doesNotMatch(script, /videoStage\?\.addEventListener\("wheel"|videoRailWheelDelta|videoRailWheelTimer/u);
+    assert.doesNotMatch(html, /data-video-detail-video[^>]*\bmuted\b/u);
+    assert.match(script, /videoDetailVideo\.controls = true;\s*videoDetailVideo\.muted = false;/u);
+    assert.match(script, /setVideoWatchButtonState\(true\);\s*void videoDetailVideo\.play\(\)/u);
 });

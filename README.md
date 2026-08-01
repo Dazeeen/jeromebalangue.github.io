@@ -99,9 +99,8 @@ image list. `gallery-data.js` keeps direct `file://` previews compatible, while
 
 The Video Editing page combines App Promotional Video, Trend Editing, and Editing
 Project in one cinematic category experience: a focusable poster rail expands into an
-inline feature view, with a staggered full-screen Gallery mosaic. Its categories and
-videos are generated from folders inside `static/media/videos`. Category folders use
-the same exact pattern:
+inline feature view. Its categories and videos are generated from folders inside
+`static/media/videos`. Category folders use the same exact pattern:
 
 ```text
 --Category Name--
@@ -123,3 +122,19 @@ A one-time generation is also available through
 to `main` runs `.github/workflows/sync-social-gallery.yml`, which regenerates and
 commits `gallery.json` and `gallery-data.js`. The browser data file keeps direct
 `file://` previews working without requiring a local server.
+
+## Why Work With Me
+
+The Why Work With Me page centers Jerome inside an animated liquid portrait shape,
+surrounded by floating value bubbles, tool marks, and ambient particles. The mission
+statement remains beneath the composition, and reduced-motion visitors receive the
+same content without the continuous animations.
+
+## Contact form delivery
+
+The Contact & Collaboration form sends in place through FormSubmit's cross-origin
+AJAX endpoint, so it works from `https://jeromebalangue.github.io/` without opening
+the visitor's email application. After the first live submission, confirm the
+activation message delivered to `balanguejerome@gmail.com`; queued and future
+submissions are then forwarded to that inbox. The relay requires an HTTP(S)
+deployment and does not send when `index.html` is opened directly through `file://`.
