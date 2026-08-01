@@ -578,8 +578,9 @@
     <section class="contact-section page-view" id="contact-collaboration" data-page="contact-collaboration"
         aria-labelledby="contact-title">
         <div class="contact-section__shell">
-            <form class="contact-form" action="https://formsubmit.co/ajax/balanguejerome@gmail.com" method="POST"
-                data-contact-form>
+            <form class="contact-form"
+                action="https://script.google.com/macros/s/AKfycbxwS5NBw7Lqgjas7Kh7P2QtIq_b2PMLZejBw3RN6jmFLuJ493m_xT1vEsq8akp2TU0F-A/exec"
+                method="POST" target="contact-mailer-frame" data-contact-form>
                 <header class="contact-form__header">
                     <p class="contact-form__eyebrow">08 / Start a conversation</p>
                     <h3>Tell me about your project.</h3>
@@ -600,9 +601,6 @@
                     <textarea id="contact-message" name="message" rows="3" required></textarea>
                 </div>
 
-                <input type="hidden" name="_subject" value="New portfolio collaboration inquiry">
-                <input type="hidden" name="_template" value="table">
-                <input type="hidden" name="_url" value="https://jeromebalangue.github.io/">
                 <input class="contact-form__honey" type="text" name="_honey" tabindex="-1" autocomplete="off"
                     aria-hidden="true">
 
@@ -616,6 +614,8 @@
                     Your message will be sent directly to Jerome's inbox.
                 </p>
             </form>
+            <iframe name="contact-mailer-frame" title="Contact form delivery" hidden aria-hidden="true"
+                tabindex="-1"></iframe>
 
             <div class="contact-intro">
                 <span class="contact-intro__shape" aria-hidden="true"></span>
@@ -795,7 +795,7 @@
     <script src="static/media/images/social-media-designs/gallery-data.js?v=1.0.16"></script>
     <script src="static/media/images/AI_generated_design/gallery-data.js?v=1.0.21"></script>
     <script src="static/media/videos/gallery-data.js?v=1.0.1"></script>
-    <script src="static/js/main.js?v=1.0.36"></script>
+    <script src="static/js/main.js?v=1.0.37"></script>
 </body>
 
 </html>

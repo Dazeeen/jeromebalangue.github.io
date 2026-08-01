@@ -32,18 +32,20 @@ test("the contact page keeps every collaboration offer and direct channel", () =
     assert.match(html, /href="tel:\+639085459038"/u);
 });
 
-test("the line-style contact form sends through an in-page GitHub Pages compatible endpoint", () => {
-    assert.match(html, /<form class="contact-form" action="https:\/\/formsubmit\.co\/ajax\/balanguejerome@gmail\.com" method="POST"[\s\S]*?data-contact-form>/u);
+test("the line-style contact form sends through the custom Apps Script mailer", () => {
+    assert.match(html, /<form class="contact-form"[\s\S]*?action="https:\/\/script\.google\.com\/macros\/s\/AKfycbxwS5NBw7Lqgjas7Kh7P2QtIq_b2PMLZejBw3RN6jmFLuJ493m_xT1vEsq8akp2TU0F-A\/exec"[\s\S]*?method="POST" target="contact-mailer-frame" data-contact-form>/u);
     assert.match(html, /name="name"[\s\S]*?name="email"[\s\S]*?name="message"/u);
     assert.match(html, /name="_honey"/u);
-    assert.match(html, /name="_url" value="https:\/\/jeromebalangue\.github\.io\/"/u);
-    assert.match(script, /contactForm\?\.addEventListener\("submit", async/u);
-    assert.match(script, /window\.location\.protocol === "file:"/u);
-    assert.match(script, /await fetch\(contactForm\.action/u);
+    assert.match(html, /<iframe name="contact-mailer-frame"[\s\S]*?hidden/u);
+    assert.match(script, /contactForm\?\.addEventListener\("submit"/u);
+    assert.match(script, /window\.location\.origin !== CONTACT_SITE_ORIGIN/u);
+    assert.match(script, /window\.addEventListener\("message"/u);
+    assert.match(script, /event\.data\.source !== CONTACT_MAILER_SOURCE/u);
+    assert.match(script, /HTMLFormElement\.prototype\.submit\.call\(contactForm\)/u);
     assert.match(script, /contactForm\.dataset\.state = "sending"/u);
     assert.match(script, /contactForm\.dataset\.state = "success"/u);
     assert.match(script, /contactForm\.dataset\.state = "error"/u);
-    assert.doesNotMatch(script, /window\.location\.href = `mailto:/u);
+    assert.doesNotMatch(script, /formsubmit\.co/u);
 });
 
 test("the reference-inspired composition is responsive and cache-busted", () => {
@@ -51,5 +53,5 @@ test("the reference-inspired composition is responsive and cache-busted", () => 
     assert.match(css, /\.contact-intro__shape\s*\{[\s\S]*?border-radius/u);
     assert.match(css, /@media \(max-width: 720px\)\s*\{[\s\S]*?\.contact-section/u);
     assert.match(html, /static\/css\/main\.css\?v=1\.0\.44/u);
-    assert.match(html, /static\/js\/main\.js\?v=1\.0\.36/u);
+    assert.match(html, /static\/js\/main\.js\?v=1\.0\.37/u);
 });

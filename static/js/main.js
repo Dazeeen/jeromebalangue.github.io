@@ -75,6 +75,9 @@ const contactFormStatus = document.querySelector("[data-contact-status]");
 const contactFormSubmit = contactForm?.querySelector('button[type="submit"]');
 const contactFormSubmitLabel = document.querySelector("[data-contact-submit-label]");
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+const CONTACT_SITE_ORIGIN = "https://jeromebalangue.github.io";
+const CONTACT_MAILER_SOURCE = "jerome-portfolio-contact-mailer";
+const CONTACT_MAILER_TIMEOUT_MS = 25000;
 let lastTypedCharacter = null;
 let aboutRevealFrame = null;
 let educationTimelineFrame = null;
@@ -124,6 +127,7 @@ const educationRevealTimers = new Set();
 let wheelDelta = 0;
 let wheelResetTimer = null;
 let pageNavigationLocked = false;
+let contactMailerTimeout = null;
 let educationExitArmed = false;
 let educationExitDirection = 0;
 let educationExitConfirmationReady = false;
@@ -1990,7 +1994,41 @@ pageLinks.forEach((link) => {
     });
 });
 
-contactForm?.addEventListener("submit", async (event) => {
+const clearContactMailerTimeout = () => {
+    window.clearTimeout(contactMailerTimeout);
+    contactMailerTimeout = null;
+};
+
+const isTrustedContactMailerOrigin = (origin) => (
+    origin === "https://script.google.com"
+    || /^https:\/\/[a-z0-9-]+\.googleusercontent\.com$/iu.test(origin)
+);
+
+window.addEventListener("message", (event) => {
+    if (
+        !isTrustedContactMailerOrigin(event.origin)
+        || !event.data
+        || event.data.source !== CONTACT_MAILER_SOURCE
+        || !contactForm
+    ) return;
+
+    clearContactMailerTimeout();
+    contactFormSubmit.disabled = false;
+
+    if (event.data.success) {
+        contactForm.reset();
+        contactForm.dataset.state = "success";
+        contactFormSubmitLabel.textContent = "Message sent";
+        contactFormStatus.textContent = event.data.message || "Thank you! Your message was sent to Jerome.";
+        return;
+    }
+
+    contactForm.dataset.state = "error";
+    contactFormSubmitLabel.textContent = "Try again";
+    contactFormStatus.textContent = event.data.message || "The email service could not send your message.";
+});
+
+contactForm?.addEventListener("submit", (event) => {
     event.preventDefault();
     if (contactForm.dataset.state === "sending") return;
 
@@ -2000,52 +2038,28 @@ contactForm?.addEventListener("submit", async (event) => {
     const message = String(formData.get("message") || "").trim();
     if (!name || !email || !message) return;
 
-    if (window.location.protocol === "file:") {
+    if (window.location.origin !== CONTACT_SITE_ORIGIN) {
         contactForm.dataset.state = "error";
         contactFormSubmitLabel.textContent = "Use hosted site";
-        contactFormStatus.textContent = "Email sending only works from GitHub Pages or a local web server, not a directly opened HTML file.";
+        contactFormStatus.textContent = "Email sending is enabled on the live Jerome portfolio website.";
         return;
     }
-
-    const payload = Object.fromEntries(formData.entries());
-    payload._subject = `Portfolio collaboration inquiry from ${name}`;
 
     contactForm.dataset.state = "sending";
     contactFormSubmit.disabled = true;
     contactFormSubmitLabel.textContent = "Sending...";
     contactFormStatus.textContent = "Sending your message securely...";
 
-    try {
-        const response = await fetch(contactForm.action, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                Accept: "application/json"
-            },
-            body: JSON.stringify(payload)
-        });
-        const result = await response.json().catch(() => ({}));
-        if (!response.ok || result.success === false || result.success === "false") {
-            throw new Error(result.message || "The message could not be delivered.");
-        }
-
-        contactForm.reset();
-        contactForm.dataset.state = "success";
-        contactFormSubmitLabel.textContent = "Message submitted";
-        contactFormStatus.textContent = "Thank you! Your message was submitted successfully.";
-    } catch (error) {
+    clearContactMailerTimeout();
+    contactMailerTimeout = window.setTimeout(() => {
         contactForm.dataset.state = "error";
-        contactFormSubmitLabel.textContent = "Try again";
-        if (!navigator.onLine) {
-            contactFormStatus.textContent = "You appear to be offline. Reconnect and try again.";
-        } else if (error instanceof Error && error.message && error.message !== "Failed to fetch") {
-            contactFormStatus.textContent = `Unable to send: ${error.message}`;
-        } else {
-            contactFormStatus.textContent = "The email service could not be reached. Please try again in a moment.";
-        }
-    } finally {
         contactFormSubmit.disabled = false;
-    }
+        contactFormSubmitLabel.textContent = "Try again";
+        contactFormStatus.textContent = "The email service took too long to respond. Please try again.";
+        contactMailerTimeout = null;
+    }, CONTACT_MAILER_TIMEOUT_MS);
+
+    HTMLFormElement.prototype.submit.call(contactForm);
 });
 
 const bindSocialFilterButton = (button) => {

@@ -132,9 +132,14 @@ same content without the continuous animations.
 
 ## Contact form delivery
 
-The Contact & Collaboration form sends in place through FormSubmit's cross-origin
-AJAX endpoint, so it works from `https://jeromebalangue.github.io/` without opening
-the visitor's email application. After the first live submission, confirm the
-activation message delivered to `balanguejerome@gmail.com`; queued and future
-submissions are then forwarded to that inbox. The relay requires an HTTP(S)
-deployment and does not send when `index.html` is opened directly through `file://`.
+The Contact & Collaboration form posts to a Google Apps Script web app owned by
+Jerome. The script sends a custom branded HTML email to
+`balanguejerome@gmail.com`, with a plain-text fallback and Reply-To set to the
+visitor's email address. A hidden iframe keeps the visitor on the portfolio, while
+the Apps Script response reports success or failure through `postMessage`.
+
+The front end accepts mailer responses only from Google Apps Script origins and only
+when they carry the expected `jerome-portfolio-contact-mailer` source marker. Form
+submission is enabled only on `https://jeromebalangue.github.io`; direct `file://`
+and local previews do not send email. The editable backend and deployment notes are
+in `integrations/google-apps-script/contact-mailer/`.
