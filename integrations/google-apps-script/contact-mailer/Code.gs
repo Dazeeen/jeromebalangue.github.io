@@ -18,10 +18,34 @@ const CONTACT_CONFIG = Object.freeze({
   maxReviewCompanyLength: 120,
   maxReviewTitleLength: 120,
   maxReviewFeedbackLength: 1200,
-  maxStoredReviews: 80,
+  maxStoredReviews: 5000,
+  portfolioFolderName: "Website Portfolio",
+  inquiriesFolderName: "Inquiries",
+  reviewsFolderName: "Reviews",
+  reviewsSpreadsheetName: "Portfolio Reviews",
+  reviewsSheetName: "Reviews",
+  portfolioFolderIdKey: "storage:portfolioFolderId",
+  inquiriesFolderIdKey: "storage:inquiriesFolderId",
+  reviewsFolderIdKey: "storage:reviewsFolderId",
+  reviewsSpreadsheetIdKey: "storage:reviewsSpreadsheetId",
+  reviewMigrationKey: "reviews:migratedToSheet",
   reviewIndexKey: "reviews:index",
   reviewPropertyPrefix: "review:"
 });
+
+const REVIEW_SHEET_HEADERS = Object.freeze([
+  "Review ID",
+  "Submitted At",
+  "Name",
+  "Email",
+  "Company",
+  "Title",
+  "Rating",
+  "Review",
+  "Status",
+  "Approved At",
+  "Token Hash"
+]);
 
 const CONTACT_DOCUMENT_TYPES = Object.freeze({
   pdf: Object.freeze({ mimeType: "application/pdf", kind: "pdf" }),
@@ -83,7 +107,8 @@ function doGet(event) {
     maxAttachmentBytes: CONTACT_CONFIG.maxAttachmentBytes,
     maxAttachments: CONTACT_CONFIG.maxAttachments,
     maxTotalAttachmentBytes: CONTACT_CONFIG.maxTotalAttachmentBytes,
-    reviewSubmissions: true
+    reviewSubmissions: true,
+    portfolioStorage: true
   });
 }
 
@@ -121,8 +146,9 @@ function doPost(event) {
 
     const attachments = createDocumentAttachments_(request);
 
+    const submittedAtDate = new Date();
     const submittedAt = Utilities.formatDate(
-      new Date(),
+      submittedAtDate,
       "Asia/Manila",
       "MMMM d, yyyy 'at' h:mm a"
     );
@@ -134,13 +160,24 @@ function doPost(event) {
       };
     });
 
+    const plainTextEmail = createPlainTextEmail_(name, email, message, submittedAt, attachmentInfos);
+    const htmlEmail = createHtmlEmail_(name, email, message, submittedAt, attachmentInfos);
+
+    storeInquiryInDrive_(
+      name,
+      submittedAtDate,
+      attachments,
+      plainTextEmail,
+      htmlEmail
+    );
+
     const emailOptions = {
       to: CONTACT_CONFIG.destinationEmail,
       subject,
       name: CONTACT_CONFIG.senderName,
       replyTo: email,
-      body: createPlainTextEmail_(name, email, message, submittedAt, attachmentInfos),
-      htmlBody: createHtmlEmail_(name, email, message, submittedAt, attachmentInfos)
+      body: plainTextEmail,
+      htmlBody: htmlEmail
     };
     if (attachments.length) {
       emailOptions.attachments = attachments.map(function (attachment) {
@@ -162,7 +199,8 @@ function doPost(event) {
       TOO_MANY_ATTACHMENTS: "Please attach no more than 10 documents.",
       ATTACHMENTS_TOO_LARGE: "Please keep the combined document size at or below 20 MB.",
       UNSUPPORTED_ATTACHMENT: "Only PDF, DOCX, XLSX, PPTX, ODT, ODS, ODP, RTF, TXT, or CSV documents are allowed.",
-      INVALID_ATTACHMENT: "The attached file could not be verified as a safe document."
+      INVALID_ATTACHMENT: "The attached file could not be verified as a safe document.",
+      STORAGE_UNAVAILABLE: "Your inquiry could not be saved securely. Please try again later."
     };
     return createBrowserResponse_({
       success: false,
@@ -288,7 +326,8 @@ function handleReviewSubmission_(request) {
       INVALID_REVIEW: "Please complete every required review field and choose a rating.",
       REVIEW_RATE_LIMITED: "Please wait five minutes before submitting another review.",
       REVIEW_STORAGE_FULL: "Review submission is temporarily full. Please contact Jerome directly.",
-      DAILY_QUOTA_REACHED: "The review notification service has reached today's email limit. Please try again tomorrow."
+      DAILY_QUOTA_REACHED: "The review notification service has reached today's email limit. Please try again tomorrow.",
+      STORAGE_UNAVAILABLE: "The review could not be saved securely. Please try again later."
     };
     return createBrowserResponse_({
       type: "review-result",
@@ -336,11 +375,11 @@ function secureStringsEqual_(left, right) {
   return mismatch === 0;
 }
 
-function getReviewProperties_() {
+function getStorageProperties_() {
   return PropertiesService.getScriptProperties();
 }
 
-function getReviewIndex_(properties) {
+function getLegacyReviewIndex_(properties) {
   const rawIndex = properties.getProperty(CONTACT_CONFIG.reviewIndexKey);
   if (!rawIndex) return [];
 
@@ -358,10 +397,10 @@ function getReviewIndex_(properties) {
     if (!/^[a-f0-9]{32}$/i.test(safeId) || seen[safeId]) return false;
     seen[safeId] = true;
     return true;
-  }).slice(0, CONTACT_CONFIG.maxStoredReviews);
+  });
 }
 
-function getReviewRecord_(properties, reviewId) {
+function getLegacyReviewRecord_(properties, reviewId) {
   const rawReview = properties.getProperty(CONTACT_CONFIG.reviewPropertyPrefix + reviewId);
   if (!rawReview) return null;
   try {
@@ -372,28 +411,275 @@ function getReviewRecord_(properties, reviewId) {
   }
 }
 
+function getFolderByCachedId_(properties, propertyKey) {
+  const folderId = properties.getProperty(propertyKey);
+  if (!folderId) return null;
+  try {
+    return DriveApp.getFolderById(folderId);
+  } catch (error) {
+    properties.deleteProperty(propertyKey);
+    return null;
+  }
+}
+
+function getOrCreateChildFolder_(properties, propertyKey, parentFolder, folderName) {
+  const cachedFolder = getFolderByCachedId_(properties, propertyKey);
+  if (cachedFolder) return cachedFolder;
+
+  const matchingFolders = parentFolder.getFoldersByName(folderName);
+  const folder = matchingFolders.hasNext()
+    ? matchingFolders.next()
+    : parentFolder.createFolder(folderName);
+  properties.setProperty(propertyKey, folder.getId());
+  return folder;
+}
+
+function getOrCreateReviewSpreadsheet_(properties, reviewsFolder) {
+  const cachedSpreadsheetId = properties.getProperty(CONTACT_CONFIG.reviewsSpreadsheetIdKey);
+  if (cachedSpreadsheetId) {
+    try {
+      return SpreadsheetApp.openById(cachedSpreadsheetId);
+    } catch (error) {
+      properties.deleteProperty(CONTACT_CONFIG.reviewsSpreadsheetIdKey);
+    }
+  }
+
+  const matchingFiles = reviewsFolder.getFilesByName(CONTACT_CONFIG.reviewsSpreadsheetName);
+  while (matchingFiles.hasNext()) {
+    const file = matchingFiles.next();
+    try {
+      const spreadsheet = SpreadsheetApp.open(file);
+      properties.setProperty(CONTACT_CONFIG.reviewsSpreadsheetIdKey, spreadsheet.getId());
+      return spreadsheet;
+    } catch (error) {
+      // Ignore a non-Sheets file that happens to have the same name.
+    }
+  }
+
+  const spreadsheet = SpreadsheetApp.create(CONTACT_CONFIG.reviewsSpreadsheetName);
+  DriveApp.getFileById(spreadsheet.getId()).moveTo(reviewsFolder);
+  properties.setProperty(CONTACT_CONFIG.reviewsSpreadsheetIdKey, spreadsheet.getId());
+  return spreadsheet;
+}
+
+function initializeReviewSheet_(spreadsheet) {
+  let sheet = spreadsheet.getSheetByName(CONTACT_CONFIG.reviewsSheetName);
+  if (!sheet) {
+    sheet = spreadsheet.getSheets()[0];
+    sheet.setName(CONTACT_CONFIG.reviewsSheetName);
+  }
+
+  if (sheet.getLastRow() === 0) {
+    sheet.getRange(1, 1, 1, REVIEW_SHEET_HEADERS.length).setValues([REVIEW_SHEET_HEADERS]);
+    sheet.setFrozenRows(1);
+  } else {
+    const headers = sheet.getRange(1, 1, 1, REVIEW_SHEET_HEADERS.length).getValues()[0];
+    const validHeaders = REVIEW_SHEET_HEADERS.every(function (header, index) {
+      return String(headers[index] || "") === header;
+    });
+    if (!validHeaders) throw new Error("STORAGE_UNAVAILABLE");
+  }
+  return sheet;
+}
+
+function ensurePortfolioStorageUnlocked_() {
+  const properties = getStorageProperties_();
+  const portfolioFolder = getOrCreateChildFolder_(
+    properties,
+    CONTACT_CONFIG.portfolioFolderIdKey,
+    DriveApp.getRootFolder(),
+    CONTACT_CONFIG.portfolioFolderName
+  );
+  const inquiriesFolder = getOrCreateChildFolder_(
+    properties,
+    CONTACT_CONFIG.inquiriesFolderIdKey,
+    portfolioFolder,
+    CONTACT_CONFIG.inquiriesFolderName
+  );
+  const reviewsFolder = getOrCreateChildFolder_(
+    properties,
+    CONTACT_CONFIG.reviewsFolderIdKey,
+    portfolioFolder,
+    CONTACT_CONFIG.reviewsFolderName
+  );
+  const reviewSpreadsheet = getOrCreateReviewSpreadsheet_(properties, reviewsFolder);
+  const reviewSheet = initializeReviewSheet_(reviewSpreadsheet);
+  migrateLegacyReviewsToSheetUnlocked_(properties, reviewSheet);
+
+  return {
+    portfolioFolder,
+    inquiriesFolder,
+    reviewsFolder,
+    reviewSpreadsheet,
+    reviewSheet
+  };
+}
+
+function setupPortfolioStorage() {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    const storage = ensurePortfolioStorageUnlocked_();
+    return {
+      portfolioFolderId: storage.portfolioFolder.getId(),
+      portfolioFolderUrl: storage.portfolioFolder.getUrl(),
+      inquiriesFolderId: storage.inquiriesFolder.getId(),
+      inquiriesFolderUrl: storage.inquiriesFolder.getUrl(),
+      reviewsFolderId: storage.reviewsFolder.getId(),
+      reviewsFolderUrl: storage.reviewsFolder.getUrl(),
+      reviewsSpreadsheetId: storage.reviewSpreadsheet.getId(),
+      reviewsSpreadsheetUrl: storage.reviewSpreadsheet.getUrl()
+    };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function cleanDriveFolderName_(value) {
+  return cleanSingleLine_(value, 80)
+    .replace(/[\\/]/g, "-")
+    .replace(/[<>:"|?*]/g, "")
+    .trim() || "Potential Client";
+}
+
+function storeInquiryInDrive_(name, submittedAtDate, attachments, plainTextEmail, htmlEmail) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    const storage = ensurePortfolioStorageUnlocked_();
+    const clientFolderName = cleanDriveFolderName_(name);
+    const clientFolders = storage.inquiriesFolder.getFoldersByName(clientFolderName);
+    const clientFolder = clientFolders.hasNext()
+      ? clientFolders.next()
+      : storage.inquiriesFolder.createFolder(clientFolderName);
+    const storageTimestamp = Utilities.formatDate(
+      submittedAtDate,
+      "Asia/Manila",
+      "yyyy-MM-dd HH-mm-ss"
+    );
+    const recordBaseName = "Inquiry - " + storageTimestamp;
+
+    clientFolder.createFile(recordBaseName + ".txt", plainTextEmail, MimeType.PLAIN_TEXT);
+    clientFolder.createFile(recordBaseName + ".html", htmlEmail, MimeType.HTML);
+    attachments.forEach(function (attachment) {
+      clientFolder.createFile(attachment.blob.copyBlob().setName(attachment.name));
+    });
+
+    return {
+      clientFolderId: clientFolder.getId(),
+      clientFolderUrl: clientFolder.getUrl()
+    };
+  } catch (error) {
+    if (error && [
+      "ATTACHMENT_TOO_LARGE",
+      "TOO_MANY_ATTACHMENTS",
+      "ATTACHMENTS_TOO_LARGE",
+      "UNSUPPORTED_ATTACHMENT",
+      "INVALID_ATTACHMENT"
+    ].indexOf(error.message) !== -1) throw error;
+    throw new Error("STORAGE_UNAVAILABLE");
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function toSheetText_(value) {
+  const text = String(value == null ? "" : value);
+  return /^[=+\-@]/.test(text) ? "'" + text : text;
+}
+
+function fromSheetText_(value) {
+  const text = String(value == null ? "" : value);
+  return /^'[=+\-@]/.test(text) ? text.slice(1) : text;
+}
+
+function normalizeSheetDate_(value) {
+  if (value && Object.prototype.toString.call(value) === "[object Date]") {
+    return value.toISOString();
+  }
+  return String(value || "");
+}
+
+function reviewToSheetRow_(review) {
+  return [
+    review.id,
+    review.createdAt,
+    toSheetText_(review.name),
+    review.email,
+    toSheetText_(review.company),
+    toSheetText_(review.title),
+    review.rating,
+    toSheetText_(review.feedback),
+    review.status,
+    review.approvedAt || "",
+    review.tokenHash || ""
+  ];
+}
+
+function sheetRowToReview_(row) {
+  return {
+    id: String(row[0] || ""),
+    createdAt: normalizeSheetDate_(row[1]),
+    name: fromSheetText_(row[2]),
+    email: String(row[3] || ""),
+    company: fromSheetText_(row[4]),
+    title: fromSheetText_(row[5]),
+    rating: Number(row[6]),
+    feedback: fromSheetText_(row[7]),
+    status: String(row[8] || ""),
+    approvedAt: normalizeSheetDate_(row[9]),
+    tokenHash: String(row[10] || "")
+  };
+}
+
+function getSheetReviewsUnlocked_(sheet) {
+  const rowCount = Math.max(0, sheet.getLastRow() - 1);
+  if (!rowCount) return [];
+  return sheet.getRange(2, 1, rowCount, REVIEW_SHEET_HEADERS.length)
+    .getValues()
+    .map(sheetRowToReview_);
+}
+
+function findReviewRowUnlocked_(sheet, reviewId) {
+  const reviews = getSheetReviewsUnlocked_(sheet);
+  for (let index = 0; index < reviews.length; index += 1) {
+    if (reviews[index].id === reviewId) {
+      return { review: reviews[index], rowNumber: index + 2 };
+    }
+  }
+  return null;
+}
+
+function appendReviewRowUnlocked_(sheet, review) {
+  sheet.appendRow(reviewToSheetRow_(review));
+}
+
+function migrateLegacyReviewsToSheetUnlocked_(properties, sheet) {
+  if (properties.getProperty(CONTACT_CONFIG.reviewMigrationKey) === "1") return;
+
+  const existingIds = {};
+  getSheetReviewsUnlocked_(sheet).forEach(function (review) {
+    existingIds[review.id] = true;
+  });
+  getLegacyReviewIndex_(properties).forEach(function (reviewId) {
+    if (existingIds[reviewId]) return;
+    const review = getLegacyReviewRecord_(properties, reviewId);
+    if (!review) return;
+    appendReviewRowUnlocked_(sheet, review);
+    existingIds[reviewId] = true;
+  });
+  properties.setProperty(CONTACT_CONFIG.reviewMigrationKey, "1");
+}
+
 function storePendingReview_(review) {
   const lock = LockService.getScriptLock();
-  lock.waitLock(10000);
+  lock.waitLock(20000);
   try {
-    const properties = getReviewProperties_();
-    const reviewIndex = getReviewIndex_(properties);
-    if (reviewIndex.length >= CONTACT_CONFIG.maxStoredReviews) {
+    const storage = ensurePortfolioStorageUnlocked_();
+    if (storage.reviewSheet.getLastRow() - 1 >= CONTACT_CONFIG.maxStoredReviews) {
       throw new Error("REVIEW_STORAGE_FULL");
     }
-
-    const propertyKey = CONTACT_CONFIG.reviewPropertyPrefix + review.id;
-    const serializedReview = JSON.stringify(review);
-    if (serializedReview.length > 8000) throw new Error("INVALID_REVIEW");
-
-    properties.setProperty(propertyKey, serializedReview);
-    try {
-      reviewIndex.unshift(review.id);
-      properties.setProperty(CONTACT_CONFIG.reviewIndexKey, JSON.stringify(reviewIndex));
-    } catch (error) {
-      properties.deleteProperty(propertyKey);
-      throw error;
-    }
+    appendReviewRowUnlocked_(storage.reviewSheet, review);
   } finally {
     lock.releaseLock();
   }
@@ -401,38 +687,39 @@ function storePendingReview_(review) {
 
 function deleteReviewRecord_(reviewId) {
   const lock = LockService.getScriptLock();
-  lock.waitLock(10000);
+  lock.waitLock(20000);
   try {
-    const properties = getReviewProperties_();
-    const reviewIndex = getReviewIndex_(properties).filter(function (storedId) {
-      return storedId !== reviewId;
-    });
-    properties.deleteProperty(CONTACT_CONFIG.reviewPropertyPrefix + reviewId);
-    properties.setProperty(CONTACT_CONFIG.reviewIndexKey, JSON.stringify(reviewIndex));
+    const storage = ensurePortfolioStorageUnlocked_();
+    const match = findReviewRowUnlocked_(storage.reviewSheet, reviewId);
+    if (match) storage.reviewSheet.deleteRow(match.rowNumber);
   } finally {
     lock.releaseLock();
   }
 }
 
 function getPublishedReviews_() {
-  const properties = getReviewProperties_();
-  return getReviewIndex_(properties).map(function (reviewId) {
-    return getReviewRecord_(properties, reviewId);
-  }).filter(function (review) {
-    return review && review.status === "approved";
-  }).sort(function (left, right) {
-    return String(right.approvedAt || "").localeCompare(String(left.approvedAt || ""));
-  }).map(function (review) {
-    return {
-      id: review.id,
-      name: review.name,
-      company: review.company,
-      title: review.title,
-      rating: review.rating,
-      feedback: review.feedback,
-      approvedAt: review.approvedAt
-    };
-  });
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    const storage = ensurePortfolioStorageUnlocked_();
+    return getSheetReviewsUnlocked_(storage.reviewSheet).filter(function (review) {
+      return review.status === "approved";
+    }).sort(function (left, right) {
+      return String(right.approvedAt || "").localeCompare(String(left.approvedAt || ""));
+    }).map(function (review) {
+      return {
+        id: review.id,
+        name: review.name,
+        company: review.company,
+        title: review.title,
+        rating: review.rating,
+        feedback: review.feedback,
+        approvedAt: review.approvedAt
+      };
+    });
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 function sendReviewModerationEmail_(review, moderationToken, submittedAtDate) {
@@ -556,12 +843,13 @@ function handleReviewModeration_(request) {
 
   const lock = LockService.getScriptLock();
   try {
-    lock.waitLock(10000);
-    const properties = getReviewProperties_();
-    const review = getReviewRecord_(properties, reviewId);
-    if (!review || review.status !== "pending") {
+    lock.waitLock(20000);
+    const storage = ensurePortfolioStorageUnlocked_();
+    const match = findReviewRowUnlocked_(storage.reviewSheet, reviewId);
+    if (!match || match.review.status !== "pending") {
       return createReviewModerationPage_(false, "Review already handled", "This review is no longer awaiting moderation.");
     }
+    const review = match.review;
 
     const expectedHash = hashReviewModerationToken_(reviewId, token);
     if (!secureStringsEqual_(review.tokenHash, expectedHash)) {
@@ -571,12 +859,11 @@ function handleReviewModeration_(request) {
     if (action === "approve") {
       review.status = "approved";
       review.approvedAt = new Date().toISOString();
-      delete review.email;
-      delete review.tokenHash;
-      properties.setProperty(
-        CONTACT_CONFIG.reviewPropertyPrefix + reviewId,
-        JSON.stringify(review)
-      );
+      storage.reviewSheet.getRange(match.rowNumber, 9, 1, 3).setValues([[
+        review.status,
+        review.approvedAt,
+        ""
+      ]]);
       return createReviewModerationPage_(
         true,
         "Review accepted and posted",
@@ -584,11 +871,7 @@ function handleReviewModeration_(request) {
       );
     }
 
-    properties.deleteProperty(CONTACT_CONFIG.reviewPropertyPrefix + reviewId);
-    const reviewIndex = getReviewIndex_(properties).filter(function (storedId) {
-      return storedId !== reviewId;
-    });
-    properties.setProperty(CONTACT_CONFIG.reviewIndexKey, JSON.stringify(reviewIndex));
+    storage.reviewSheet.deleteRow(match.rowNumber);
     return createReviewModerationPage_(
       true,
       "Review declined and deleted",
@@ -1007,6 +1290,7 @@ function createBrowserResponse_(payload) {
     maxAttachments: Number(payload.maxAttachments || 0),
     maxTotalAttachmentBytes: Number(payload.maxTotalAttachmentBytes || 0),
     reviewSubmissions: Boolean(payload.reviewSubmissions),
+    portfolioStorage: Boolean(payload.portfolioStorage),
     reviews: Array.isArray(payload.reviews) ? payload.reviews : []
   }).replace(/</g, "\\u003c");
   const targetOrigin = JSON.stringify(CONTACT_CONFIG.allowedOrigin);

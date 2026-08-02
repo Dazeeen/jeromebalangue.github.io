@@ -50,8 +50,10 @@ function createAttachmentValidator(zipEntries = [], validatorName = "createDocum
 
 test("the Apps Script mailer produces branded HTML and a plain-text fallback", () => {
     assert.match(backend, /MailApp\.sendEmail\(emailOptions\)/u);
-    assert.match(backend, /htmlBody: createHtmlEmail_/u);
-    assert.match(backend, /body: createPlainTextEmail_/u);
+    assert.match(backend, /const htmlEmail = createHtmlEmail_/u);
+    assert.match(backend, /const plainTextEmail = createPlainTextEmail_/u);
+    assert.match(backend, /htmlBody: htmlEmail/u);
+    assert.match(backend, /body: plainTextEmail/u);
     assert.match(backend, /New Project<br>Inquiry/u);
     assert.match(backend, /Project brief/u);
     assert.match(backend, /Reply now/u);
@@ -225,4 +227,13 @@ test("the Apps Script mailer advertises attachment support before the form enabl
     assert.match(backend, /maxAttachments: CONTACT_CONFIG\.maxAttachments/u);
     assert.match(backend, /maxTotalAttachmentBytes: CONTACT_CONFIG\.maxTotalAttachmentBytes/u);
     assert.match(backend, /type: String\(payload\.type \|\| "result"\)/u);
+});
+
+test("validated inquiries are archived in Jerome's Drive before email delivery", () => {
+    assert.match(backend, /portfolioFolderName: "Website Portfolio"/u);
+    assert.match(backend, /inquiriesFolderName: "Inquiries"/u);
+    assert.match(backend, /storeInquiryInDrive_\([\s\S]*?MailApp\.sendEmail\(emailOptions\)/u);
+    assert.match(backend, /clientFolder\.createFile\(recordBaseName \+ "\.txt"/u);
+    assert.match(backend, /clientFolder\.createFile\(recordBaseName \+ "\.html"/u);
+    assert.match(backend, /clientFolder\.createFile\(attachment\.blob\.copyBlob\(\)\.setName\(attachment\.name\)\)/u);
 });

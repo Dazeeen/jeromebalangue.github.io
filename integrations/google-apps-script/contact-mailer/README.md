@@ -10,7 +10,7 @@ exposing a private API key in the public GitHub Pages source.
    the matching `appsscript.json` manifest settings from this folder.
 3. Select **Deploy > New deployment > Web app**.
 4. Set **Execute as** to **Me** and **Who has access** to **Anyone**.
-5. Authorize MailApp when Google prompts for permission.
+5. Authorize Mail, Google Drive, and Google Sheets when Google prompts for permission.
 6. Copy the final `/exec` web app URL. The portfolio currently uses:
 
    ```text
@@ -39,20 +39,43 @@ executable signatures, and document container structure before adding every veri
 blob to the email. Executables, scripts, macro-enabled Office packages, archives, and
 renamed application files are rejected.
 
+## Google Drive inquiry archive
+
+The script idempotently creates this private hierarchy in the deploying account:
+
+```text
+Website Portfolio/
+|-- Inquiries/
+|   `-- <client name>/
+|       |-- Inquiry - <timestamp>.txt
+|       |-- Inquiry - <timestamp>.html
+|       `-- <validated uploaded documents>
+`-- Reviews/
+    `-- Portfolio Reviews (Google Sheet)
+```
+
+`setupPortfolioStorage()` can be run once from the Apps Script editor to create the
+folders and Sheet immediately. Normal validated submissions also call the same
+idempotent setup, so existing matching folders are reused instead of duplicated.
+The manifest limits API execution to the deploying account (`MYSELF`). The Drive
+archive is written before the inquiry email is sent.
+
 ## Review moderation and storage
 
 The same web-app deployment also powers the portfolio Reviews page. Review
 submissions use separate field names, a honeypot, a five-minute per-email rate limit,
 strict length/rating/consent validation, and a script lock for concurrent writes.
-Pending reviews are stored in script-wide Apps Script properties and are never
-returned by the public reviews response.
+Pending reviews are stored as private rows in the `Portfolio Reviews` Google Sheet
+under `Website Portfolio/Reviews/` and are never returned by the public response.
+Existing property-backed reviews are copied into the Sheet once during setup so the
+Sheet becomes the canonical review store.
 
 Each valid submission sends Jerome a branded preview email with one-time **Accept &
 Post** and **Decline & Delete** links. Each link contains a high-entropy token; only
-its SHA-256 hash is stored. Approval removes the private reviewer email and token
-before exposing the display fields publicly. Rejection deletes the record and its
-index entry. Storage is intentionally capped at 80 retained pending/approved reviews
-to remain below the Apps Script property-store limit even with maximum-length copy.
+its SHA-256 hash is stored. Approval marks the private Sheet row as approved and
+clears the token hash before exposing only the display fields publicly. Rejection
+deletes the pending Sheet row. Reviewer email remains private in the Sheet and is
+never returned to the website.
 
 The static page requests published reviews with `?mode=reviews` in a hidden iframe.
 The response uses the existing trusted Google-origin plus

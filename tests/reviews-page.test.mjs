@@ -35,6 +35,8 @@ test("the Reviews page has the requested experience and consent fields", () => {
         assert.match(html, new RegExp(`name="${field}"`, "u"));
     }
     assert.match(html, /review-rating-5[\s\S]*?review-rating-4[\s\S]*?review-rating-3[\s\S]*?review-rating-2[\s\S]*?review-rating-1/u);
+    assert.match(html, /data-review-submit-label>Submit<\/span>/u);
+    assert.doesNotMatch(html, /data-review-submit-label>Submit Review<\/span>/u);
     assert.match(html, /My email stays private\./u);
     assert.match(html, /iframe name="review-mailer-frame"[\s\S]*?iframe name="reviews-data-frame"/u);
 });

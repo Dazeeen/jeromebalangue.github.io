@@ -147,15 +147,18 @@ in `integrations/google-apps-script/contact-mailer/`.
 The attachment field supports drag-and-drop or file selection for up to 10 verified
 documents, capped at 5 MB each and 20 MB combined. Selected filenames and sizes are
 shown before submission, and preparation/upload progress remains visible while the
-message is being delivered.
+message is being delivered. Every validated inquiry is also archived in Jerome's
+private Google Drive under `Website Portfolio/Inquiries/<client name>/`. The client
+folder contains plain-text and branded HTML copies of the inquiry email plus every
+verified uploaded document.
 
 ## Moderated reviews
 
 The final portfolio page is a blue-curtain Reviews experience with an accessible
 five-star form and a live list of approved client stories. New reviews are saved as
-private pending records in Google Apps Script properties and trigger a branded
-preview email to Jerome. The email contains one-time **Accept & Post** and **Decline
-& Delete** actions. Approval removes the private email and moderation token before
-publishing the review; rejection permanently deletes the pending record. The public
-reviews response includes only the reviewer's display name, optional company, title,
-rating, feedback, and approval date.
+private pending rows in `Website Portfolio/Reviews/Portfolio Reviews`, a Google
+Sheet owned by Jerome, and trigger a branded preview email. The email contains
+one-time **Accept & Post** and **Decline & Delete** actions. Approval changes the
+private row to `approved`, clears its moderation token, and publishes only its safe
+display fields; rejection permanently deletes the pending row. Reviewer email
+addresses remain private and are never included in the public reviews response.

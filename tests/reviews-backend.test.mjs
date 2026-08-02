@@ -13,9 +13,138 @@ function createReviewBackend() {
     const properties = new Map();
     const cache = new Map();
     const emails = [];
+    const foldersById = new Map();
+    const filesById = new Map();
+    const spreadsheets = new Map();
     let uuidCounter = 0;
+    let driveCounter = 0;
     let locked = false;
 
+    const iterator = (items) => {
+        let index = 0;
+        return {
+            hasNext: () => index < items.length,
+            next: () => items[index++]
+        };
+    };
+    const createFolder = (name, parent = null) => {
+        const id = `folder-${++driveCounter}`;
+        const folder = {
+            id,
+            name,
+            parent,
+            folders: [],
+            files: [],
+            getId: () => id,
+            getName: () => name,
+            getUrl: () => `https://drive.google.com/drive/folders/${id}`,
+            getFoldersByName: (targetName) => iterator(folder.folders.filter((child) => child.name === targetName)),
+            getFilesByName: (targetName) => iterator(folder.files.filter((file) => file.name === targetName)),
+            createFolder(childName) {
+                const child = createFolder(childName, folder);
+                folder.folders.push(child);
+                return child;
+            },
+            createFile(nameOrBlob, content = "", mimeType = "") {
+                const isBlob = typeof nameOrBlob === "object";
+                const name = isBlob ? nameOrBlob.getName() : nameOrBlob;
+                const id = `file-${++driveCounter}`;
+                const file = {
+                    id,
+                    name,
+                    content: isBlob ? nameOrBlob : content,
+                    mimeType,
+                    parent: folder,
+                    getId: () => id,
+                    getName: () => name,
+                    getUrl: () => `https://drive.google.com/file/d/${id}/view`
+                };
+                folder.files.push(file);
+                filesById.set(id, file);
+                return file;
+            }
+        };
+        foldersById.set(id, folder);
+        return folder;
+    };
+    const rootFolder = createFolder("My Drive");
+    const createSheet = () => {
+        const rows = [];
+        return {
+            rows,
+            name: "Sheet1",
+            frozenRows: 0,
+            getLastRow: () => rows.length,
+            setName(name) {
+                this.name = name;
+                return this;
+            },
+            setFrozenRows(count) {
+                this.frozenRows = count;
+                return this;
+            },
+            appendRow(values) {
+                rows.push([...values]);
+                return this;
+            },
+            deleteRow(rowNumber) {
+                rows.splice(rowNumber - 1, 1);
+                return this;
+            },
+            getRange(row, column, rowCount, columnCount) {
+                return {
+                    getValues() {
+                        return Array.from({ length: rowCount }, (_, rowOffset) => (
+                            Array.from({ length: columnCount }, (_, columnOffset) => (
+                                rows[row - 1 + rowOffset]?.[column - 1 + columnOffset] ?? ""
+                            ))
+                        ));
+                    },
+                    setValues(values) {
+                        values.forEach((sourceRow, rowOffset) => {
+                            const targetIndex = row - 1 + rowOffset;
+                            while (rows.length <= targetIndex) rows.push([]);
+                            sourceRow.forEach((value, columnOffset) => {
+                                rows[targetIndex][column - 1 + columnOffset] = value;
+                            });
+                        });
+                        return this;
+                    }
+                };
+            }
+        };
+    };
+    const createSpreadsheet = (name) => {
+        const id = `spreadsheet-${++driveCounter}`;
+        const sheet = createSheet();
+        const spreadsheet = {
+            id,
+            name,
+            sheet,
+            getId: () => id,
+            getUrl: () => `https://docs.google.com/spreadsheets/d/${id}/edit`,
+            getSheetByName: (sheetName) => sheet.name === sheetName ? sheet : null,
+            getSheets: () => [sheet]
+        };
+        const file = {
+            id,
+            name,
+            spreadsheet,
+            parent: rootFolder,
+            getId: () => id,
+            getName: () => name,
+            moveTo(folder) {
+                this.parent.files = this.parent.files.filter((entry) => entry !== this);
+                folder.files.push(this);
+                this.parent = folder;
+                return this;
+            }
+        };
+        rootFolder.files.push(file);
+        filesById.set(id, file);
+        spreadsheets.set(id, spreadsheet);
+        return spreadsheet;
+    };
     const propertyStore = {
         getProperty: (key) => properties.get(key) ?? null,
         setProperty(key, value) {
@@ -40,6 +169,29 @@ function createReviewBackend() {
         console: { error() {} },
         PropertiesService: {
             getScriptProperties: () => propertyStore
+        },
+        DriveApp: {
+            getRootFolder: () => rootFolder,
+            getFolderById: (id) => {
+                if (!foldersById.has(id)) throw new Error("Folder not found");
+                return foldersById.get(id);
+            },
+            getFileById: (id) => {
+                if (!filesById.has(id)) throw new Error("File not found");
+                return filesById.get(id);
+            }
+        },
+        SpreadsheetApp: {
+            create: createSpreadsheet,
+            openById: (id) => {
+                if (!spreadsheets.has(id)) throw new Error("Spreadsheet not found");
+                return spreadsheets.get(id);
+            },
+            open: (file) => file.spreadsheet
+        },
+        MimeType: {
+            PLAIN_TEXT: "text/plain",
+            HTML: "text/html"
         },
         CacheService: {
             getScriptCache: () => ({
@@ -91,10 +243,20 @@ globalThis.reviewApi = {
   submit: handleReviewSubmission_,
   moderate: handleReviewModeration_,
   list: getPublishedReviews_,
-  get: doGet
+  get: doGet,
+  setup: setupPortfolioStorage,
+  storeInquiry: storeInquiryInDrive_
 };`, context);
 
-    return { api: context.reviewApi, emails, properties };
+    const findFolder = (parent, name) => parent.folders.find((folder) => folder.name === name);
+    return {
+        api: context.reviewApi,
+        emails,
+        properties,
+        rootFolder,
+        findFolder,
+        getReviewSheet: () => [...spreadsheets.values()][0]?.sheet ?? null
+    };
 }
 
 const validReview = Object.freeze({
@@ -115,30 +277,40 @@ function moderationLink(emailBody, label) {
     return new URL(match[1]);
 }
 
-test("review submission stores a private pending record and emails a branded moderation preview", () => {
-    const { api, emails, properties } = createReviewBackend();
+test("review submission creates the Drive hierarchy, stores a private Sheet row, and emails a preview", () => {
+    const backendState = createReviewBackend();
+    const { api, emails, rootFolder, findFolder, getReviewSheet } = backendState;
     const response = api.submit({ ...validReview });
 
     assert.match(response.getContent(), /review-result/u);
     assert.match(response.getContent(), /sent to Jerome for approval/u);
     assert.equal(emails.length, 1);
     assert.match(emails[0].subject, /5-star website review/u);
-    assert.match(emails[0].htmlBody, /New Website Review/u);
     assert.match(emails[0].htmlBody, /Accept &amp; Post/u);
     assert.match(emails[0].htmlBody, /Decline &amp; Delete/u);
-    assert.match(emails[0].htmlBody, /Avery &amp; Co\./u);
+    assert.match(emails[0].htmlBody, /Avery &amp; Co./u);
 
-    const reviewKeys = [...properties.keys()].filter((key) => /^review:[a-f0-9]{32}$/u.test(key));
-    assert.equal(reviewKeys.length, 1);
-    const storedReview = JSON.parse(properties.get(reviewKeys[0]));
-    assert.equal(storedReview.status, "pending");
-    assert.equal(storedReview.email, "hello@example.com");
-    assert.ok(storedReview.tokenHash);
+    const portfolioFolder = findFolder(rootFolder, "Website Portfolio");
+    assert.ok(portfolioFolder);
+    assert.ok(findFolder(portfolioFolder, "Inquiries"));
+    const reviewsFolder = findFolder(portfolioFolder, "Reviews");
+    assert.ok(reviewsFolder);
+    assert.equal(reviewsFolder.files[0].name, "Portfolio Reviews");
+
+    const sheet = getReviewSheet();
+    assert.deepEqual(sheet.rows[0], [
+        "Review ID", "Submitted At", "Name", "Email", "Company", "Title",
+        "Rating", "Review", "Status", "Approved At", "Token Hash"
+    ]);
+    assert.equal(sheet.rows[1][2], "Avery & Co.");
+    assert.equal(sheet.rows[1][3], "hello@example.com");
+    assert.equal(sheet.rows[1][8], "pending");
+    assert.ok(sheet.rows[1][10]);
     assert.deepEqual(JSON.parse(JSON.stringify(api.list())), []);
 });
 
-test("Accept and Post publishes only public fields and makes the secure link single-use", () => {
-    const { api, emails, properties } = createReviewBackend();
+test("Accept and Post updates the private Sheet row and publishes only public fields", () => {
+    const { api, emails, getReviewSheet } = createReviewBackend();
     api.submit({ ...validReview });
     const approveUrl = moderationLink(emails[0].body, "ACCEPT AND POST");
     const request = Object.fromEntries(approveUrl.searchParams);
@@ -151,9 +323,11 @@ test("Accept and Post publishes only public fields and makes the secure link sin
     assert.equal(published[0].rating, 5);
     assert.equal(Object.hasOwn(published[0], "email"), false);
 
-    const storedReview = JSON.parse(properties.get(`review:${published[0].id}`));
-    assert.equal(Object.hasOwn(storedReview, "email"), false);
-    assert.equal(Object.hasOwn(storedReview, "tokenHash"), false);
+    const sheetRow = getReviewSheet().rows[1];
+    assert.equal(sheetRow[3], "hello@example.com");
+    assert.equal(sheetRow[8], "approved");
+    assert.ok(sheetRow[9]);
+    assert.equal(sheetRow[10], "");
     assert.match(api.moderate(request).getContent(), /Review already handled/u);
 
     const publicResponse = api.get({ parameter: { mode: "reviews" } }).getContent();
@@ -161,8 +335,8 @@ test("Accept and Post publishes only public fields and makes the secure link sin
     assert.doesNotMatch(publicResponse, /hello@example\.com/u);
 });
 
-test("Decline and Delete permanently removes a pending review", () => {
-    const { api, emails, properties } = createReviewBackend();
+test("Decline and Delete permanently removes the pending Sheet row", () => {
+    const { api, emails, getReviewSheet } = createReviewBackend();
     api.submit({ ...validReview });
     const rejectUrl = moderationLink(emails[0].body, "DECLINE AND DELETE");
     const request = Object.fromEntries(rejectUrl.searchParams);
@@ -170,7 +344,7 @@ test("Decline and Delete permanently removes a pending review", () => {
 
     assert.match(moderationPage.getContent(), /Review declined and deleted/u);
     assert.deepEqual(JSON.parse(JSON.stringify(api.list())), []);
-    assert.equal([...properties.keys()].some((key) => /^review:[a-f0-9]{32}$/u.test(key)), false);
+    assert.equal(getReviewSheet().rows.length, 1);
 });
 
 test("tampered moderation tokens cannot publish a pending review", () => {
@@ -184,8 +358,8 @@ test("tampered moderation tokens cannot publish a pending review", () => {
     assert.deepEqual(JSON.parse(JSON.stringify(api.list())), []);
 });
 
-test("invalid reviews are rejected before storage or email delivery", () => {
-    const { api, emails, properties } = createReviewBackend();
+test("invalid reviews are rejected before Drive, Sheet, or email writes", () => {
+    const { api, emails, properties, rootFolder } = createReviewBackend();
     const response = api.submit({
         ...validReview,
         reviewRating: "6",
@@ -195,27 +369,95 @@ test("invalid reviews are rejected before storage or email delivery", () => {
     assert.match(response.getContent(), /complete every required review field/u);
     assert.equal(emails.length, 0);
     assert.equal(properties.size, 0);
+    assert.equal(rootFolder.folders.length, 0);
 });
 
-test("review email previews escape submitted markup", () => {
-    const { api, emails } = createReviewBackend();
+test("review email previews and Sheet cells neutralize submitted formulas and markup", () => {
+    const { api, emails, getReviewSheet } = createReviewBackend();
     api.submit({
         ...validReview,
-        reviewTitle: "<img src=x onerror=alert(1)>",
+        reviewTitle: "=HYPERLINK(\"bad\")",
         reviewFeedback: "Great work <script>alert('no')</script>"
     });
 
-    assert.match(emails[0].htmlBody, /&lt;img src=x onerror=alert\(1\)&gt;/u);
+    assert.match(emails[0].htmlBody, /=HYPERLINK\(&quot;bad&quot;\)/u);
     assert.match(emails[0].htmlBody, /&lt;script&gt;alert\(&#039;no&#039;\)&lt;\/script&gt;/u);
     assert.doesNotMatch(emails[0].htmlBody, /<script>alert/u);
+    assert.equal(getReviewSheet().rows[1][5], "'=HYPERLINK(\"bad\")");
 });
 
-test("the review backend uses bounded script storage, locking, and private public projections", () => {
-    assert.match(backend, /maxStoredReviews: 80/u);
-    assert.match(backend, /PropertiesService\.getScriptProperties\(\)/u);
+test("legacy property reviews migrate once into the canonical Google Sheet", () => {
+    const { api, properties, getReviewSheet } = createReviewBackend();
+    const id = "a".repeat(32);
+    properties.set("reviews:index", JSON.stringify([id]));
+    properties.set(`review:${id}`, JSON.stringify({
+        id,
+        name: "Legacy Client",
+        email: "",
+        company: "",
+        title: "Still excellent",
+        rating: 5,
+        feedback: "Migrated safely.",
+        status: "approved",
+        createdAt: "2026-07-01T00:00:00.000Z",
+        approvedAt: "2026-07-02T00:00:00.000Z",
+        tokenHash: ""
+    }));
+
+    assert.equal(api.list()[0].name, "Legacy Client");
+    assert.equal(getReviewSheet().rows.length, 2);
+    assert.equal(properties.get("reviews:migratedToSheet"), "1");
+    api.list();
+    assert.equal(getReviewSheet().rows.length, 2);
+});
+
+test("inquiries store email copies and uploaded documents inside the named client folder", () => {
+    const { api, rootFolder, findFolder } = createReviewBackend();
+    const blob = {
+        name: "creative-brief.pdf",
+        getName() {
+            return this.name;
+        },
+        copyBlob() {
+            return {
+                name: this.name,
+                setName(name) {
+                    this.name = name;
+                    return this;
+                },
+                getName() {
+                    return this.name;
+                }
+            };
+        }
+    };
+
+    api.storeInquiry(
+        "Avery / Co.",
+        new Date("2026-08-02T01:30:00.000Z"),
+        [{ name: "creative-brief.pdf", blob }],
+        "Plain inquiry email",
+        "<html>Branded inquiry email</html>"
+    );
+
+    const portfolioFolder = findFolder(rootFolder, "Website Portfolio");
+    const inquiriesFolder = findFolder(portfolioFolder, "Inquiries");
+    const clientFolder = findFolder(inquiriesFolder, "Avery - Co.");
+    assert.ok(clientFolder);
+    assert.equal(clientFolder.files.filter((file) => file.name.endsWith(".txt")).length, 1);
+    assert.equal(clientFolder.files.filter((file) => file.name.endsWith(".html")).length, 1);
+    assert.ok(clientFolder.files.some((file) => file.name === "creative-brief.pdf"));
+});
+
+test("the review backend uses locked Drive folders and Sheets with private public projections", () => {
+    assert.match(backend, /portfolioFolderName: "Website Portfolio"/u);
+    assert.match(backend, /inquiriesFolderName: "Inquiries"/u);
+    assert.match(backend, /reviewsFolderName: "Reviews"/u);
+    assert.match(backend, /reviewsSpreadsheetName: "Portfolio Reviews"/u);
+    assert.match(backend, /DriveApp\.getRootFolder\(\)/u);
+    assert.match(backend, /SpreadsheetApp\.create\(CONTACT_CONFIG\.reviewsSpreadsheetName\)/u);
     assert.match(backend, /LockService\.getScriptLock\(\)/u);
     assert.match(backend, /hashReviewModerationToken_/u);
-    assert.match(backend, /delete review\.email/u);
     assert.match(backend, /review\.status === "approved"/u);
     assert.match(backend, /reviewSubmissions: true/u);
 });
