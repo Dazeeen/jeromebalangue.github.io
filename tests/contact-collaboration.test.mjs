@@ -33,7 +33,7 @@ test("the contact page keeps every collaboration offer and direct channel", () =
 });
 
 test("the line-style contact form sends through the custom Apps Script mailer", () => {
-    assert.match(html, /<form class="contact-form"[\s\S]*?action="https:\/\/script\.google\.com\/macros\/s\/AKfycbxwS5NBw7Lqgjas7Kh7P2QtIq_b2PMLZejBw3RN6jmFLuJ493m_xT1vEsq8akp2TU0F-A\/exec"[\s\S]*?method="POST" target="contact-mailer-frame" data-contact-form>/u);
+    assert.match(html, /<form class="contact-form"[\s\S]*?action="https:\/\/script\.google\.com\/macros\/s\/AKfycbyKnUg4T1HiVJ3rxeiXGq5hjhtrZvLxFZaZj642kG7YiMdyCUyy6YFeSoxdkJww3HPQMg\/exec"[\s\S]*?method="POST" target="contact-mailer-frame" data-contact-form>/u);
     assert.match(html, /name="name"[\s\S]*?name="email"[\s\S]*?name="message"/u);
     assert.match(html, /data-contact-dropzone[\s\S]*?Drag &amp; drop documents here[\s\S]*?click to choose files/u);
     assert.match(html, /id="contact-attachment" type="file" multiple hidden[\s\S]*?accept="\.pdf,\.docx,\.xlsx,\.pptx,\.odt,\.ods,\.odp,\.rtf,\.txt,\.csv"/u);

@@ -4,7 +4,7 @@ const CONTACT_CONFIG = Object.freeze({
   responseSource: "jerome-portfolio-contact-mailer",
   senderName: "Jerome Balangue Portfolio",
   siteUrl: "https://jeromebalangue.github.io/",
-  webAppUrl: "https://script.google.com/macros/s/AKfycbxwS5NBw7Lqgjas7Kh7P2QtIq_b2PMLZejBw3RN6jmFLuJ493m_xT1vEsq8akp2TU0F-A/exec",
+  webAppUrl: "https://script.google.com/macros/s/AKfycbyKnUg4T1HiVJ3rxeiXGq5hjhtrZvLxFZaZj642kG7YiMdyCUyy6YFeSoxdkJww3HPQMg/exec",
   moderationGatewayUrl: "https://jeromebalangue.github.io/review-moderation.html?v=4",
   moderationEnabled: false,
   moderationTokenLifetimeSeconds: 24 * 60 * 60,
@@ -847,7 +847,7 @@ function createReviewModerationPlainTextEmail_(review, submittedAt, expiresAt, a
     "DECLINE AND DELETE:",
     rejectUrl,
     "",
-    "Google will require Jerome's deploying account. Each link can be used once and expires after 24 hours."
+    "Each secure link is delivered only to Jerome's email, can be used once, and expires after 24 hours."
   ].join("\n");
 }
 
@@ -899,7 +899,7 @@ function createReviewModerationHtmlEmail_(review, submittedAt, expiresAt, approv
               <td width="50%" style="padding-left:6px;"><a href="${safeRejectUrl}" style="display:block;padding:14px 12px;border:1px solid #d95870;border-radius:999px;background:#fff;color:#b32645;font-size:11px;font-weight:800;letter-spacing:.7px;text-align:center;text-decoration:none;text-transform:uppercase;">Decline &amp; Delete</a></td>
             </tr>
           </table>
-          <p style="margin:18px 0 0;text-align:center;font-size:10px;line-height:1.6;color:#8290a4;">Google will require Jerome's deploying account. Each secure link expires after one action or 24 hours.</p>
+          <p style="margin:18px 0 0;text-align:center;font-size:10px;line-height:1.6;color:#8290a4;">Each secure link is single-use, is delivered only to Jerome's email, and expires after one action or 24 hours.</p>
         </td></tr>
       </table>
     </td></tr>

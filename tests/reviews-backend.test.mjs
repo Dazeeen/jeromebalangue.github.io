@@ -539,11 +539,12 @@ test("the review backend uses locked Drive folders and Sheets with private publi
     assert.match(backend, /inquiriesFolderName: "Inquiries"/u);
     assert.match(backend, /reviewsFolderName: "Reviews"/u);
     assert.match(backend, /reviewsSpreadsheetName: "Portfolio Reviews"/u);
-    assert.match(backend, /webAppUrl: "https:\/\/script\.google\.com\/macros\/s\/AKfycbxwS5NBw7Lqgjas7Kh7P2QtIq_b2PMLZejBw3RN6jmFLuJ493m_xT1vEsq8akp2TU0F-A\/exec"/u);
+    assert.match(backend, /webAppUrl: "https:\/\/script\.google\.com\/macros\/s\/AKfycbyKnUg4T1HiVJ3rxeiXGq5hjhtrZvLxFZaZj642kG7YiMdyCUyy6YFeSoxdkJww3HPQMg\/exec"/u);
     assert.match(backend, /moderationGatewayUrl: "https:\/\/jeromebalangue\.github\.io\/review-moderation\.html\?v=4"/u);
     assert.match(backend, /moderationEnabled: false/u);
     assert.match(backend, /moderationTokenLifetimeSeconds: 24 \* 60 \* 60/u);
     assert.match(backend, /if \(!CONTACT_CONFIG\.moderationEnabled\)/u);
+    assert.doesNotMatch(backend, /Google will require Jerome's deploying account/u);
     assert.match(backend, /DriveApp\.getRootFolder\(\)/u);
     assert.match(backend, /SpreadsheetApp\.create\(CONTACT_CONFIG\.reviewsSpreadsheetName\)/u);
     assert.match(backend, /LockService\.getScriptLock\(\)/u);

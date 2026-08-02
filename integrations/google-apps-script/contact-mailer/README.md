@@ -14,7 +14,7 @@ exposing a private API key in the public GitHub Pages source.
 6. Copy the final `/exec` web app URL. The portfolio currently uses:
 
    ```text
-   https://script.google.com/macros/s/AKfycbxwS5NBw7Lqgjas7Kh7P2QtIq_b2PMLZejBw3RN6jmFLuJ493m_xT1vEsq8akp2TU0F-A/exec
+   https://script.google.com/macros/s/AKfycbyKnUg4T1HiVJ3rxeiXGq5hjhtrZvLxFZaZj642kG7YiMdyCUyy6YFeSoxdkJww3HPQMg/exec
    ```
 
 Do not place Google passwords, OAuth tokens, or private API keys in this repository.
