@@ -26,15 +26,21 @@ through its URL. Jerome-only moderation uses this separate deployment:
 https://script.google.com/macros/s/AKfycbyc81epxNpehBmO-qObFjn76f3UxAPtw1w3_FOHyP6Z67LlSlL0w95nL3pJSbI360-4Vw/exec
 ```
 
-That deployment is a versioned snapshot with **Who has access: Only myself** and
-belongs to `balanguejerome@gmail.com`. Its snapshot has `moderationEnabled: true`.
-Keep the repository manifest in public mode (`ANYONE_ANONYMOUS`) and the committed
-code guard set to `false`; updating the private deployment requires intentionally
-creating a private `MYSELF` version, never pointing it at an ordinary public build.
-Use the exact standard `/macros/s/<deployment-id>/exec` URL returned by the Apps
-Script deployment API. Do not insert `/a/gmail.com/`: consumer Gmail is not a
-Google Workspace domain, and that domain-routed URL can end at Google's
-"file cannot be opened" page before the private web app runs.
+That URL is a dedicated moderation deployment owned by
+`balanguejerome@gmail.com`. Its pinned snapshot has `moderationEnabled: true`,
+executes as the deploying account, and accepts the high-entropy one-time links sent
+only to Jerome's destination email. It intentionally does not depend on Google's
+multi-account web-app login routing, which can return a Drive "file cannot be
+opened" page before an owner-only web app runs.
+
+The ordinary public form deployment and committed source keep
+`moderationEnabled: false`, so their URLs cannot execute a moderation token. The
+dedicated deployment is protected by a random 256-bit token whose SHA-256 hash is
+stored in the private Sheet; the raw token is sent only in Jerome's email, expires
+after 24 hours, works once, and is cleared before publishing or deleting. Updating
+the dedicated deployment requires intentionally creating a version with
+`moderationEnabled: true`, pinning only that deployment to it, and immediately
+returning the project head to the committed `false` guard.
 
 The backend sends a custom portfolio email with the website's public blue-curtain
 background, provides a plain-text fallback, sets Reply-To to the visitor, validates

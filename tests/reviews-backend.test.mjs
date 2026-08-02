@@ -371,21 +371,21 @@ test("moderation emails use the owner-confirmation gateway without exposing toke
     assert.doesNotMatch(emails[0].body, /\/macros\/u\/\d+\/s\//u);
 });
 
-test("the moderation gateway requires confirmation before opening the owner-only deployment", () => {
+test("the moderation gateway requires confirmation before opening the one-time-link deployment", () => {
     assert.match(moderationGateway, /window\.location\.hash\.slice\(1\)/u);
     assert.match(moderationGateway, /\^\[a-f0-9\]\{32\}\$/u);
     assert.match(moderationGateway, /\^\[a-f0-9\]\{64\}\$/u);
     assert.match(moderationGateway, /data-confirm/u);
-    assert.match(moderationGateway, /Continue as Jerome/u);
+    assert.match(moderationGateway, /data-confirm>Continue</u);
     assert.match(moderationGateway, /balanguejerome@gmail\.com/u);
     assert.match(
         moderationGateway,
         /https:\/\/script\.google\.com\/macros\/s\/AKfycbyc81epxNpehBmO-qObFjn76f3UxAPtw1w3_FOHyP6Z67LlSlL0w95nL3pJSbI360-4Vw\/exec/u
     );
     assert.doesNotMatch(moderationGateway, /script\.google\.com\/a\/gmail\.com\/macros/u);
-    assert.match(moderationGateway, /https:\/\/accounts\.google\.com\/AccountChooser/u);
-    assert.match(moderationGateway, /accountChooser\.searchParams\.set\("continue", destination\.toString\(\)\)/u);
-    assert.match(moderationGateway, /window\.location\.assign\(accountChooser\.toString\(\)\)/u);
+    assert.doesNotMatch(moderationGateway, /https:\/\/accounts\.google\.com\/AccountChooser/u);
+    assert.doesNotMatch(moderationGateway, /script\.google\.com\/accounts/u);
+    assert.match(moderationGateway, /window\.location\.assign\(destination\.toString\(\)\)/u);
     assert.match(moderationGateway, /window\.history\.replaceState/u);
     assert.doesNotMatch(moderationGateway, /fetch\(destination/u);
 });

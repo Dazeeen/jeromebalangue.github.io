@@ -150,7 +150,7 @@
     <div class="eyebrow">Review moderation</div>
     <h1>Opening your secure review action...</h1>
     <p data-message>Please wait while we connect to the review service.</p>
-    <button type="button" data-confirm>Continue as Jerome</button>
+    <button type="button" data-confirm>Continue</button>
     <a href="./#reviews">Cancel</a>
   </main>
 
@@ -158,7 +158,7 @@
     (() => {
       "use strict";
 
-      const ownerWebAppUrl = "https://script.google.com/macros/s/AKfycbyc81epxNpehBmO-qObFjn76f3UxAPtw1w3_FOHyP6Z67LlSlL0w95nL3pJSbI360-4Vw/exec";
+      const moderationWebAppUrl = "https://script.google.com/macros/s/AKfycbyc81epxNpehBmO-qObFjn76f3UxAPtw1w3_FOHyP6Z67LlSlL0w95nL3pJSbI360-4Vw/exec";
       const page = document.querySelector("main");
       const heading = document.querySelector("h1");
       const message = document.querySelector("[data-message]");
@@ -176,22 +176,19 @@
         return;
       }
 
-      const destination = new URL(ownerWebAppUrl);
+      const destination = new URL(moderationWebAppUrl);
       destination.searchParams.set("reviewAction", action);
       destination.searchParams.set("reviewId", reviewId);
       destination.searchParams.set("reviewToken", reviewToken);
       page.dataset.state = "confirm";
       heading.textContent = action === "approve" ? "Confirm Accept & Post" : "Confirm Decline & Delete";
-      message.textContent = "Google will verify that you are signed in as balanguejerome@gmail.com before this action is applied.";
-      confirmButton.textContent = action === "approve" ? "Accept & Post as Jerome" : "Decline & Delete as Jerome";
+      message.textContent = "This single-use action was delivered to balanguejerome@gmail.com and expires automatically after 24 hours.";
+      confirmButton.textContent = action === "approve" ? "Accept & Post" : "Decline & Delete";
       confirmButton.addEventListener("click", () => {
         confirmButton.disabled = true;
-        confirmButton.textContent = "Opening secure approval...";
+        confirmButton.textContent = "Applying secure action...";
         window.history.replaceState(null, "", window.location.pathname + window.location.search);
-        const accountChooser = new URL("https://accounts.google.com/AccountChooser");
-        accountChooser.searchParams.set("Email", "balanguejerome@gmail.com");
-        accountChooser.searchParams.set("continue", destination.toString());
-        window.location.assign(accountChooser.toString());
+        window.location.assign(destination.toString());
       }, { once: true });
     })();
   </script>
