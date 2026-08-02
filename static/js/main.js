@@ -81,11 +81,14 @@ const contactAttachmentName = document.querySelector("[data-contact-attachment-n
 const contactAttachmentType = document.querySelector("[data-contact-attachment-type]");
 const contactAttachmentSize = document.querySelector("[data-contact-attachment-size]");
 const contactAttachmentData = document.querySelector("[data-contact-attachment-data]");
+const siteToastStack = document.querySelector("[data-site-toast-stack]");
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 const CONTACT_SITE_ORIGIN = "https://jeromebalangue.github.io";
 const CONTACT_MAILER_SOURCE = "jerome-portfolio-contact-mailer";
 const CONTACT_MAILER_TIMEOUT_MS = 45000;
 const CONTACT_ATTACHMENT_MAX_BYTES = 5 * 1024 * 1024;
+const SITE_TOAST_MAX_COUNT = 3;
+const SITE_TOAST_DEFAULT_DURATION_MS = 6000;
 const CONTACT_ATTACHMENT_DEFAULT_MESSAGE = "PDF, DOCX, XLSX, PPTX, ODT, ODS, ODP, RTF, TXT, or CSV · max 5 MB";
 const CONTACT_DOCUMENT_TYPES = Object.freeze({
     pdf: { mimeType: "application/pdf", accepted: ["application/pdf"] },
@@ -161,6 +164,7 @@ let wheelDelta = 0;
 let wheelResetTimer = null;
 let pageNavigationLocked = false;
 let contactMailerTimeout = null;
+let contactStatusToast = null;
 let educationExitArmed = false;
 let educationExitDirection = 0;
 let educationExitConfirmationReady = false;
@@ -2027,6 +2031,87 @@ pageLinks.forEach((link) => {
     });
 });
 
+const siteToastTimers = new WeakMap();
+
+const clearSiteToastTimer = (toast) => {
+    const timer = siteToastTimers.get(toast);
+    if (timer) window.clearTimeout(timer);
+    siteToastTimers.delete(toast);
+};
+
+const dismissSiteToast = (toast, immediately = false) => {
+    if (!toast?.isConnected) return;
+    clearSiteToastTimer(toast);
+
+    const removeToast = () => {
+        siteToastTimers.delete(toast);
+        toast.remove();
+        if (contactStatusToast === toast) contactStatusToast = null;
+    };
+
+    if (immediately || reducedMotion.matches) {
+        removeToast();
+        return;
+    }
+
+    toast.classList.add("is-leaving");
+    siteToastTimers.set(toast, window.setTimeout(removeToast, 240));
+};
+
+const showSiteToast = (message, type = "info", options = {}) => {
+    if (!siteToastStack || !message) return null;
+
+    const {
+        duration = SITE_TOAST_DEFAULT_DURATION_MS,
+        title = "Status",
+        toast: reusableToast = null
+    } = options;
+    const toast = reusableToast?.isConnected
+        ? reusableToast
+        : document.createElement("article");
+
+    if (!toast.isConnected) {
+        toast.className = "site-toast";
+        toast.innerHTML = `
+            <span class="site-toast__icon" aria-hidden="true"></span>
+            <span class="site-toast__copy">
+                <strong class="site-toast__title"></strong>
+                <span class="site-toast__message"></span>
+            </span>
+            <button class="site-toast__close" type="button" aria-label="Dismiss notification">\u00d7</button>
+        `;
+        toast.querySelector(".site-toast__close").addEventListener("click", () => dismissSiteToast(toast));
+        siteToastStack.append(toast);
+    } else {
+        toast.classList.remove("is-leaving");
+    }
+
+    toast.dataset.type = type;
+    toast.setAttribute("role", type === "error" ? "alert" : "status");
+    toast.querySelector(".site-toast__title").textContent = title;
+    toast.querySelector(".site-toast__message").textContent = message;
+    clearSiteToastTimer(toast);
+
+    if (duration > 0) {
+        siteToastTimers.set(toast, window.setTimeout(() => dismissSiteToast(toast), duration));
+    }
+
+    const visibleToasts = [...siteToastStack.querySelectorAll(".site-toast")];
+    visibleToasts
+        .slice(0, Math.max(0, visibleToasts.length - SITE_TOAST_MAX_COUNT))
+        .forEach((oldestToast) => dismissSiteToast(oldestToast, true));
+
+    return toast;
+};
+
+const showContactToast = (message, type, title, duration = SITE_TOAST_DEFAULT_DURATION_MS) => {
+    contactStatusToast = showSiteToast(message, type, {
+        duration,
+        title,
+        toast: contactStatusToast
+    });
+};
+
 const clearContactMailerTimeout = () => {
     window.clearTimeout(contactMailerTimeout);
     contactMailerTimeout = null;
@@ -2140,17 +2225,21 @@ window.addEventListener("message", (event) => {
     contactFormSubmit.disabled = false;
 
     if (event.data.success) {
+        const successMessage = event.data.message || "Thank you! Your message was sent to Jerome.";
         contactForm.reset();
         resetContactAttachmentStatus();
         contactForm.dataset.state = "success";
         contactFormSubmitLabel.textContent = "Message sent";
-        contactFormStatus.textContent = event.data.message || "Thank you! Your message was sent to Jerome.";
+        contactFormStatus.textContent = successMessage;
+        showContactToast(successMessage, "success", "Message sent");
         return;
     }
 
+    const errorMessage = event.data.message || "The email service could not send your message.";
     contactForm.dataset.state = "error";
     contactFormSubmitLabel.textContent = "Try again";
-    contactFormStatus.textContent = event.data.message || "The email service could not send your message.";
+    contactFormStatus.textContent = errorMessage;
+    showContactToast(errorMessage, "error", "Message not sent", 8000);
 });
 
 if (contactAttachmentInput && contactMailerCapabilityFrame && contactForm) {
@@ -2185,6 +2274,7 @@ contactAttachmentInput?.addEventListener("change", () => {
     } catch (error) {
         contactAttachmentInput.value = "";
         setContactAttachmentStatus(error.message, "error");
+        showContactToast(error.message, "error", "Document not attached", 8000);
     }
 });
 
@@ -2199,9 +2289,11 @@ contactForm?.addEventListener("submit", async (event) => {
     if (!name || !email || !message) return;
 
     if (window.location.origin !== CONTACT_SITE_ORIGIN) {
+        const hostedSiteMessage = "Email sending is enabled on the live Jerome portfolio website.";
         contactForm.dataset.state = "error";
         contactFormSubmitLabel.textContent = "Use hosted site";
-        contactFormStatus.textContent = "Email sending is enabled on the live Jerome portfolio website.";
+        contactFormStatus.textContent = hostedSiteMessage;
+        showContactToast(hostedSiteMessage, "warning", "Live website required", 8000);
         return;
     }
 
@@ -2214,6 +2306,12 @@ contactForm?.addEventListener("submit", async (event) => {
         contactFormSubmit.disabled = true;
         contactFormSubmitLabel.textContent = "Preparing file...";
         contactFormStatus.textContent = "Checking and securely preparing your document...";
+        showContactToast(
+            "Checking and securely preparing your document...",
+            "info",
+            "Preparing document",
+            0
+        );
 
         try {
             const documentType = validateContactAttachment(attachment);
@@ -2226,11 +2324,13 @@ contactForm?.addEventListener("submit", async (event) => {
             contactAttachmentSize.value = String(attachment.size);
             contactAttachmentData.value = encodedDocument;
         } catch (error) {
+            const attachmentErrorMessage = error.message || "The selected document could not be attached.";
             clearContactAttachmentPayload();
             contactForm.dataset.state = "error";
             contactFormSubmit.disabled = false;
             contactFormSubmitLabel.textContent = "Try again";
-            contactFormStatus.textContent = error.message || "The selected document could not be attached.";
+            contactFormStatus.textContent = attachmentErrorMessage;
+            showContactToast(attachmentErrorMessage, "error", "Document not attached", 8000);
             return;
         }
     }
@@ -2241,13 +2341,16 @@ contactForm?.addEventListener("submit", async (event) => {
     contactFormStatus.textContent = attachment
         ? "Sending your message and document securely..."
         : "Sending your message securely...";
+    showContactToast(contactFormStatus.textContent, "info", "Sending message", 0);
 
     clearContactMailerTimeout();
     contactMailerTimeout = window.setTimeout(() => {
-        contactForm.dataset.state = "error";
+        const delayedMessage = "Your message was submitted, but delivery confirmation is delayed. Please wait before sending it again.";
+        contactForm.dataset.state = "pending";
         contactFormSubmit.disabled = false;
-        contactFormSubmitLabel.textContent = "Try again";
-        contactFormStatus.textContent = "The email service took too long to respond. Please try again.";
+        contactFormSubmitLabel.textContent = "Message submitted";
+        contactFormStatus.textContent = delayedMessage;
+        showContactToast(delayedMessage, "warning", "Message submitted", 9000);
         contactMailerTimeout = null;
     }, CONTACT_MAILER_TIMEOUT_MS);
 

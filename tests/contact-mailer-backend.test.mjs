@@ -160,6 +160,7 @@ test("the Apps Script mailer validates, escapes, and rate-limits submissions", (
 
 test("the Apps Script mailer reports results back to the portfolio iframe", () => {
     assert.match(backend, /window\.top\.postMessage/u);
+    assert.match(backend, /setXFrameOptionsMode\(HtmlService\.XFrameOptionsMode\.ALLOWALL\)/u);
     assert.match(backend, /https:\/\/jeromebalangue\.github\.io/u);
     assert.match(backend, /jerome-portfolio-contact-mailer/u);
 });

@@ -53,6 +53,8 @@ test("the line-style contact form sends through the custom Apps Script mailer", 
     assert.match(script, /contactForm\.dataset\.state = "sending"/u);
     assert.match(script, /contactForm\.dataset\.state = "success"/u);
     assert.match(script, /contactForm\.dataset\.state = "error"/u);
+    assert.match(script, /contactForm\.dataset\.state = "pending"/u);
+    assert.doesNotMatch(script, /The email service took too long to respond\. Please try again\./u);
     assert.match(script, /CONTACT_ATTACHMENT_MAX_BYTES = 5 \* 1024 \* 1024/u);
     assert.match(script, /FileReader\(\)/u);
     assert.match(script, /readAsDataURL\(file\)/u);
@@ -61,11 +63,20 @@ test("the line-style contact form sends through the custom Apps Script mailer", 
     assert.doesNotMatch(script, /formsubmit\.co/u);
 });
 
+test("contact statuses use accessible lower-right toasts", () => {
+    assert.match(html, /class="site-toast-stack" data-site-toast-stack aria-live="polite"/u);
+    assert.match(script, /SITE_TOAST_MAX_COUNT = 3/u);
+    assert.match(script, /showContactToast\(successMessage, "success", "Message sent"\)/u);
+    assert.match(script, /showContactToast\(errorMessage, "error", "Message not sent", 8000\)/u);
+    assert.match(css, /\.site-toast-stack\s*\{[\s\S]*?position: fixed;[\s\S]*?right:[\s\S]*?bottom:/u);
+    assert.match(css, /\.site-toast\.is-leaving/u);
+});
+
 test("the reference-inspired composition is responsive and cache-busted", () => {
     assert.match(css, /\.contact-section\s*\{[\s\S]*?repeating-linear-gradient[\s\S]*?portfolio-background\.png/u);
     assert.match(css, /\.contact-intro__shape\s*\{[\s\S]*?border-radius/u);
     assert.match(css, /@media \(max-width: 720px\)\s*\{[\s\S]*?\.contact-section/u);
     assert.match(css, /\.contact-form__file-input::file-selector-button/u);
-    assert.match(html, /static\/css\/main\.css\?v=1\.0\.45/u);
-    assert.match(html, /static\/js\/main\.js\?v=1\.0\.39/u);
+    assert.match(html, /static\/css\/main\.css\?v=1\.0\.46/u);
+    assert.match(html, /static\/js\/main\.js\?v=1\.0\.40/u);
 });

@@ -502,5 +502,5 @@ function createBrowserResponse_(payload) {
 
   return HtmlService.createHtmlOutput(
     `<!doctype html><meta charset="utf-8"><script>window.top.postMessage(${response},${targetOrigin});</script>`
-  );
+  ).setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
