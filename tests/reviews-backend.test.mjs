@@ -354,7 +354,7 @@ test("the anonymous public deployment cannot execute a moderation token", () => 
     assert.equal(getReviewSheet().rows[1][8], "pending");
 });
 
-test("moderation emails use the owner-confirmation gateway without exposing tokens to GitHub requests", () => {
+test("moderation emails use the portfolio gateway without exposing tokens to GitHub requests", () => {
     const { api, emails } = createReviewBackend();
     api.submit({ ...validReview });
     const approveUrl = moderationLink(emails[0].body, "ACCEPT AND POST");
@@ -365,19 +365,17 @@ test("moderation emails use the owner-confirmation gateway without exposing toke
         "https://jeromebalangue.github.io/review-moderation.html"
     );
     assert.equal(rejectUrl.origin + rejectUrl.pathname, approveUrl.origin + approveUrl.pathname);
-    assert.equal(approveUrl.search, "?v=4");
+    assert.equal(approveUrl.search, "?v=5");
     assert.equal(moderationRequest(approveUrl).reviewAction, "approve");
     assert.equal(moderationRequest(rejectUrl).reviewAction, "reject");
     assert.doesNotMatch(emails[0].body, /\/macros\/u\/\d+\/s\//u);
 });
 
-test("the moderation gateway requires confirmation before opening the one-time-link deployment", () => {
+test("the moderation gateway processes actions anonymously without Google account credentials", () => {
     assert.match(moderationGateway, /window\.location\.hash\.slice\(1\)/u);
     assert.match(moderationGateway, /\^\[a-f0-9\]\{32\}\$/u);
     assert.match(moderationGateway, /\^\[a-f0-9\]\{64\}\$/u);
-    assert.match(moderationGateway, /data-confirm/u);
-    assert.match(moderationGateway, /data-confirm>Continue</u);
-    assert.match(moderationGateway, /balanguejerome@gmail\.com/u);
+    assert.doesNotMatch(moderationGateway, /data-confirm/u);
     assert.match(
         moderationGateway,
         /https:\/\/script\.google\.com\/macros\/s\/AKfycbyc81epxNpehBmO-qObFjn76f3UxAPtw1w3_FOHyP6Z67LlSlL0w95nL3pJSbI360-4Vw\/exec/u
@@ -385,9 +383,11 @@ test("the moderation gateway requires confirmation before opening the one-time-l
     assert.doesNotMatch(moderationGateway, /script\.google\.com\/a\/gmail\.com\/macros/u);
     assert.doesNotMatch(moderationGateway, /https:\/\/accounts\.google\.com\/AccountChooser/u);
     assert.doesNotMatch(moderationGateway, /script\.google\.com\/accounts/u);
-    assert.match(moderationGateway, /window\.location\.assign\(destination\.toString\(\)\)/u);
+    assert.match(moderationGateway, /fetch\(destination\.toString\(\)/u);
+    assert.match(moderationGateway, /mode: "no-cors"/u);
+    assert.match(moderationGateway, /credentials: "omit"/u);
     assert.match(moderationGateway, /window\.history\.replaceState/u);
-    assert.doesNotMatch(moderationGateway, /fetch\(destination/u);
+    assert.doesNotMatch(moderationGateway, /window\.location\.assign/u);
 });
 
 test("pending reviews can receive a rotated replacement moderation link", () => {
@@ -540,7 +540,7 @@ test("the review backend uses locked Drive folders and Sheets with private publi
     assert.match(backend, /reviewsFolderName: "Reviews"/u);
     assert.match(backend, /reviewsSpreadsheetName: "Portfolio Reviews"/u);
     assert.match(backend, /webAppUrl: "https:\/\/script\.google\.com\/macros\/s\/AKfycbyKnUg4T1HiVJ3rxeiXGq5hjhtrZvLxFZaZj642kG7YiMdyCUyy6YFeSoxdkJww3HPQMg\/exec"/u);
-    assert.match(backend, /moderationGatewayUrl: "https:\/\/jeromebalangue\.github\.io\/review-moderation\.html\?v=4"/u);
+    assert.match(backend, /moderationGatewayUrl: "https:\/\/jeromebalangue\.github\.io\/review-moderation\.html\?v=5"/u);
     assert.match(backend, /moderationEnabled: false/u);
     assert.match(backend, /moderationTokenLifetimeSeconds: 24 \* 60 \* 60/u);
     assert.match(backend, /if \(!CONTACT_CONFIG\.moderationEnabled\)/u);

@@ -92,18 +92,18 @@ Sheet becomes the canonical review store.
 Each valid submission sends Jerome a branded preview email with one-time **Accept &
 Post** and **Decline & Delete** links. Each link contains a high-entropy token; only
 its SHA-256 hash and 24-hour expiry are stored. Email buttons first open the
-portfolio-hosted `review-moderation.html` confirmation gateway, with credentials
-kept in the URL fragment so they are not sent to GitHub. Nothing changes until
-Jerome confirms the action. The gateway then opens Google's account chooser for
-`balanguejerome@gmail.com` and continues to the separate `MYSELF` deployment.
-Google blocks every other account before the script runs, and the public deployment
-also refuses moderation as defense in depth. Approval clears the token and expiry
-before exposing only public fields. Rejection deletes the pending Sheet row.
+portfolio-hosted `review-moderation.html` gateway, with credentials kept in the URL
+fragment so they are not sent to GitHub. The gateway validates them, calls the
+dedicated anonymous moderation deployment with browser credentials omitted, and
+reports the action in place without opening Google's account or Drive pages. The
+ordinary public form deployment still refuses moderation as defense in depth.
+Approval clears the token and expiry before exposing only public fields. Rejection
+deletes the pending Sheet row.
 Expired links clear their stored credentials and require a fresh moderation email.
 Reviewer email remains private in the Sheet and is never returned to the website.
 
-If a deployment URL ever changes, update `CONTACT_CONFIG.webAppUrl` and the owner
-deployment constant in `review-moderation.html`, redeploy both surfaces, then
+If a deployment URL ever changes, update `CONTACT_CONFIG.webAppUrl` and the
+moderation deployment constant in `review-moderation.html`, redeploy both surfaces, then
 run `resendPendingReviewModerationEmails()` once from the Apps Script editor. It
 rotates the stored hashes and sends fresh working links for pending rows only.
 
