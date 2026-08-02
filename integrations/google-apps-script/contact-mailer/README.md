@@ -31,6 +31,10 @@ belongs to `balanguejerome@gmail.com`. Its snapshot has `moderationEnabled: true
 Keep the repository manifest in public mode (`ANYONE_ANONYMOUS`) and the committed
 code guard set to `false`; updating the private deployment requires intentionally
 creating a private `MYSELF` version, never pointing it at an ordinary public build.
+Use the exact standard `/macros/s/<deployment-id>/exec` URL returned by the Apps
+Script deployment API. Do not insert `/a/gmail.com/`: consumer Gmail is not a
+Google Workspace domain, and that domain-routed URL can end at Google's
+"file cannot be opened" page before the private web app runs.
 
 The backend sends a custom portfolio email with the website's public blue-curtain
 background, provides a plain-text fallback, sets Reply-To to the visitor, validates

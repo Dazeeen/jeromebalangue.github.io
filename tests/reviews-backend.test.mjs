@@ -365,7 +365,7 @@ test("moderation emails use the owner-confirmation gateway without exposing toke
         "https://jeromebalangue.github.io/review-moderation.html"
     );
     assert.equal(rejectUrl.origin + rejectUrl.pathname, approveUrl.origin + approveUrl.pathname);
-    assert.equal(approveUrl.search, "?v=3");
+    assert.equal(approveUrl.search, "?v=4");
     assert.equal(moderationRequest(approveUrl).reviewAction, "approve");
     assert.equal(moderationRequest(rejectUrl).reviewAction, "reject");
     assert.doesNotMatch(emails[0].body, /\/macros\/u\/\d+\/s\//u);
@@ -380,8 +380,9 @@ test("the moderation gateway requires confirmation before opening the owner-only
     assert.match(moderationGateway, /balanguejerome@gmail\.com/u);
     assert.match(
         moderationGateway,
-        /https:\/\/script\.google\.com\/a\/gmail\.com\/macros\/s\/AKfycbyc81epxNpehBmO-qObFjn76f3UxAPtw1w3_FOHyP6Z67LlSlL0w95nL3pJSbI360-4Vw\/exec/u
+        /https:\/\/script\.google\.com\/macros\/s\/AKfycbyc81epxNpehBmO-qObFjn76f3UxAPtw1w3_FOHyP6Z67LlSlL0w95nL3pJSbI360-4Vw\/exec/u
     );
+    assert.doesNotMatch(moderationGateway, /script\.google\.com\/a\/gmail\.com\/macros/u);
     assert.match(moderationGateway, /https:\/\/accounts\.google\.com\/AccountChooser/u);
     assert.match(moderationGateway, /accountChooser\.searchParams\.set\("continue", destination\.toString\(\)\)/u);
     assert.match(moderationGateway, /window\.location\.assign\(accountChooser\.toString\(\)\)/u);
@@ -539,7 +540,7 @@ test("the review backend uses locked Drive folders and Sheets with private publi
     assert.match(backend, /reviewsFolderName: "Reviews"/u);
     assert.match(backend, /reviewsSpreadsheetName: "Portfolio Reviews"/u);
     assert.match(backend, /webAppUrl: "https:\/\/script\.google\.com\/macros\/s\/AKfycbxwS5NBw7Lqgjas7Kh7P2QtIq_b2PMLZejBw3RN6jmFLuJ493m_xT1vEsq8akp2TU0F-A\/exec"/u);
-    assert.match(backend, /moderationGatewayUrl: "https:\/\/jeromebalangue\.github\.io\/review-moderation\.html\?v=3"/u);
+    assert.match(backend, /moderationGatewayUrl: "https:\/\/jeromebalangue\.github\.io\/review-moderation\.html\?v=4"/u);
     assert.match(backend, /moderationEnabled: false/u);
     assert.match(backend, /moderationTokenLifetimeSeconds: 24 \* 60 \* 60/u);
     assert.match(backend, /if \(!CONTACT_CONFIG\.moderationEnabled\)/u);
