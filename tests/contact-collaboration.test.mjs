@@ -82,12 +82,15 @@ test("contact statuses use accessible lower-right toasts", () => {
 
 test("the reference-inspired composition is responsive and cache-busted", () => {
     assert.match(css, /\.contact-section\s*\{[\s\S]*?repeating-linear-gradient[\s\S]*?portfolio-background\.png/u);
+    assert.match(css, /\.contact-section\s*\{[\s\S]*?height: 100svh;[\s\S]*?min-height: 0;[\s\S]*?overflow: hidden;/u);
+    assert.match(css, /\.contact-section__shell\s*\{[\s\S]*?height: 100%;[\s\S]*?min-height: 0;/u);
     assert.match(css, /\.contact-intro__shape\s*\{[\s\S]*?border-radius/u);
-    assert.match(css, /@media \(max-width: 720px\)\s*\{[\s\S]*?\.contact-section/u);
+    assert.match(css, /@media \(max-width: 720px\)\s*\{[\s\S]*?\.contact-section\s*\{[\s\S]*?height: 100svh;[\s\S]*?min-height: 0;[\s\S]*?overflow: hidden;/u);
+    assert.match(css, /@media \(max-width: 720px\)[\s\S]*?\.contact-section__shell\s*\{[\s\S]*?height: 100%;[\s\S]*?min-height: 0;/u);
     assert.match(css, /\.contact-form__dropzone/u);
     assert.match(css, /\.contact-form__file-item/u);
     assert.match(css, /\.contact-form__upload-progress-track/u);
     assert.match(css, /@keyframes contact-upload-indeterminate/u);
-    assert.match(html, /static\/css\/main\.css\?v=1\.0\.48/u);
+    assert.match(html, /static\/css\/main\.css\?v=1\.0\.49/u);
     assert.match(html, /static\/js\/main\.js\?v=1\.0\.42/u);
 });
