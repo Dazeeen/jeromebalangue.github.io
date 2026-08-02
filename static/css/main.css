@@ -836,100 +836,116 @@ body {
 .home-testimonial-card {
     position: relative;
     isolation: isolate;
-    flex: 0 0 clamp(24rem, 36vw, 31rem);
-    min-height: 31rem;
-    padding: 9.2rem 1rem 4.8rem;
+    container-type: inline-size;
+    flex: 0 0 clamp(22rem, 29vw, 26.1875rem);
+    min-height: 0;
+    padding:
+        clamp(9.7rem, 12.8vw, 11.56rem)
+        0
+        clamp(1.49rem, 1.86vw, 1.69rem);
     color: #eef5ff;
     text-align: center;
 }
 
 .home-testimonial-card__orbit {
     position: absolute;
-    z-index: 2;
-    top: 3.4rem;
-    left: 50%;
-    width: 12.25rem;
-    height: 12.25rem;
+    z-index: 4;
+    top: 20.05cqi;
+    left: 50.5%;
+    width: 30.8cqi;
+    height: 30.8cqi;
     border: 2px solid rgba(137, 154, 184, 0.5);
     border-radius: 50%;
     background:
         radial-gradient(circle at 42% 35%, rgba(57, 64, 78, 0.98), rgba(18, 24, 35, 0.99) 70%),
         #111722;
     box-shadow:
-        inset 0 0 2.25rem rgba(255, 255, 255, 0.035),
-        0 1.2rem 2.8rem rgba(0, 0, 0, 0.46);
+        inset 0 0 1.8rem rgba(255, 255, 255, 0.035),
+        0 0.85rem 1.65rem rgba(0, 0, 0, 0.46);
     transform: translateX(-50%);
 }
 
 .home-testimonial-card__orbit::before {
     position: absolute;
-    inset: -1.65rem;
-    border: 0.34rem solid #f5f7fb;
+    top: -2.05cqi;
+    right: -3.1cqi;
+    left: -3.1cqi;
+    height: 36.8cqi;
+    border: max(0.17rem, 0.72cqi) solid #f5f7fb;
     border-bottom-color: transparent;
     border-radius: 50%;
+    clip-path: inset(0 0 44% 0);
     content: "";
-    filter: drop-shadow(0 0.35rem 0.5rem rgba(0, 0, 0, 0.28));
-    transform: rotate(-1deg);
+    filter: drop-shadow(0 0.22rem 0.34rem rgba(0, 0, 0, 0.3));
 }
 
 .home-testimonial-card__label {
     position: absolute;
-    z-index: 3;
-    top: -0.35rem;
+    z-index: 5;
+    top: 6.4cqi;
     left: 50%;
     color: rgba(240, 246, 255, 0.92);
     font-family: "Pinyon Script", "Times New Roman", cursive;
-    font-size: clamp(2.8rem, 4.7vw, 4rem);
-    letter-spacing: 0.04em;
+    font-size: clamp(2.35rem, 11.45cqi, 3rem);
+    letter-spacing: 0.015em;
     line-height: 1;
-    text-shadow: 0 0.35rem 0.8rem rgba(0, 0, 0, 0.28);
-    transform: translateX(-50%) rotate(-4deg);
+    text-shadow: 0 0.22rem 0.5rem rgba(0, 0, 0, 0.34);
+    transform: translateX(-50%) rotate(-3deg);
 }
 
 .home-testimonial-card__dots {
     position: absolute;
-    z-index: 3;
-    top: 7.55rem;
-    width: 8.15rem;
-    height: 1rem;
-    background: radial-gradient(circle, #f6f8fc 0 0.34rem, transparent 0.39rem) 0 50% / 1.63rem 1rem repeat-x;
-    filter: drop-shadow(0 0.25rem 0.25rem rgba(0, 0, 0, 0.28));
+    z-index: 5;
+    display: flex;
+    justify-content: space-between;
+    width: 20.5cqi;
+    height: 1.9cqi;
+    filter: drop-shadow(0 0.16rem 0.18rem rgba(0, 0, 0, 0.28));
+}
+
+.home-testimonial-card__dots i {
+    display: block;
+    width: 1.9cqi;
+    height: 1.9cqi;
+    border-radius: 50%;
+    background: #f6f8fc;
 }
 
 .home-testimonial-card__dots--left {
-    left: 0.15rem;
+    top: 32.5cqi;
+    left: 8.6cqi;
 }
 
 .home-testimonial-card__dots--right {
-    right: 0.15rem;
+    top: 21.9cqi;
+    right: 7.4cqi;
 }
 
 .home-testimonial-card__quote {
     position: absolute;
-    z-index: 4;
+    z-index: 6;
     display: flex;
-    width: clamp(6.7rem, 10vw, 8.3rem);
-    height: clamp(4.8rem, 7vw, 6rem);
-    gap: 0.65rem;
-    filter: drop-shadow(0 0.8rem 0.8rem rgba(0, 0, 0, 0.28));
+    width: 17.7cqi;
+    height: 12.9cqi;
+    filter: drop-shadow(0 0.45rem 0.48rem rgba(0, 0, 0, 0.3));
 }
 
-.home-testimonial-card__quote i {
+.home-testimonial-card__quote svg {
     display: block;
-    flex: 1 1 0;
-    border-radius: 0.5rem 1.4rem 0.5rem 0.5rem;
-    background: linear-gradient(145deg, #fff, #e9edf3 76%);
-    clip-path: polygon(0 0, 100% 0, 100% 100%, 25% 100%, 25% 58%, 0 58%);
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    fill: #f5f7fb;
 }
 
 .home-testimonial-card__quote--closing {
-    top: 8.05rem;
-    right: -0.25rem;
+    top: 36.8cqi;
+    right: 11.2cqi;
 }
 
 .home-testimonial-card__quote--opening {
-    bottom: 0.65rem;
-    left: 2.35rem;
+    bottom: 2.1cqi;
+    left: 12.65cqi;
     transform: rotate(180deg);
 }
 
@@ -939,25 +955,26 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    min-height: 21rem;
-    padding: 7.45rem clamp(2rem, 3.1vw, 3rem) 3.25rem;
+    width: 87.1cqi;
+    min-height: 45.8cqi;
+    padding: 7.6cqi 8.8cqi 8.2cqi;
+    margin-right: 0;
+    margin-left: 7.1cqi;
     border: 1px solid rgba(151, 164, 187, 0.34);
-    border-radius: 2rem;
+    border-radius: 4.9cqi;
     background:
-        radial-gradient(circle at 50% 22%, rgba(67, 75, 89, 0.38), transparent 42%),
-        linear-gradient(145deg, rgba(35, 42, 53, 0.98), rgba(17, 24, 35, 0.99));
+        radial-gradient(circle at 50% 8%, rgba(68, 76, 91, 0.32), transparent 39%),
+        linear-gradient(145deg, rgba(35, 42, 53, 0.99), rgba(18, 25, 36, 0.99));
     box-shadow:
         inset 0 1px 0 rgba(255, 255, 255, 0.035),
-        0 1.65rem 3.4rem rgba(0, 0, 0, 0.4);
+        0 0.9rem 1.7rem rgba(0, 0, 0, 0.42);
 }
 
 .home-testimonial-card__panel::after {
     position: absolute;
     inset: 0;
     border-radius: inherit;
-    background:
-        repeating-linear-gradient(0deg, transparent 0 2.45rem, rgba(183, 203, 235, 0.025) 2.5rem),
-        repeating-linear-gradient(90deg, transparent 0 2.45rem, rgba(183, 203, 235, 0.025) 2.5rem);
+    background: linear-gradient(120deg, rgba(255, 255, 255, 0.018), transparent 42%);
     content: "";
     pointer-events: none;
 }
@@ -972,28 +989,29 @@ body {
 
 .home-testimonial-card__stars {
     order: 2;
-    margin-top: 0.55rem;
+    margin-top: 0.55cqi;
     color: #ffc440;
-    font-size: clamp(1.05rem, 1.65vw, 1.32rem);
-    letter-spacing: 0.12em;
+    font-size: clamp(0.95rem, 4.7cqi, 1.2rem);
+    letter-spacing: 0.1em;
     line-height: 1;
 }
 
 .home-testimonial-card__name {
     order: 1;
     color: #fff;
-    font-size: clamp(1.35rem, 2vw, 1.8rem);
+    font-size: clamp(1.12rem, 5.15cqi, 1.35rem);
     font-weight: 800;
-    letter-spacing: -0.035em;
-    line-height: 1.2;
+    letter-spacing: -0.04em;
+    line-height: 1.08;
 }
 
 .home-testimonial-card__feedback {
     order: 3;
-    margin-top: 1.3rem;
+    width: min(100%, 68.3cqi);
+    margin-top: 2.85cqi;
     color: rgba(244, 247, 252, 0.9);
-    font-size: clamp(0.84rem, 1.18vw, 1.02rem);
-    line-height: 1.62;
+    font-size: clamp(0.63rem, 2.63cqi, 0.69rem);
+    line-height: 1.35;
     overflow-wrap: anywhere;
     white-space: normal;
 }
@@ -1107,46 +1125,11 @@ body {
     }
 
     .home-testimonial-card {
-        flex-basis: min(91vw, 27rem);
-        min-height: 29rem;
-        padding: 8rem 0.35rem 4.2rem;
-    }
-
-    .home-testimonial-card__label {
-        font-size: clamp(2.6rem, 13vw, 3.5rem);
-    }
-
-    .home-testimonial-card__orbit {
-        top: 3.25rem;
-        width: 10.5rem;
-        height: 10.5rem;
-    }
-
-    .home-testimonial-card__orbit::before {
-        inset: -1.2rem;
-        border-width: 0.28rem;
-    }
-
-    .home-testimonial-card__dots {
-        top: 6.7rem;
-        width: 5.4rem;
-        background-size: 1.08rem 1rem;
-    }
-
-    .home-testimonial-card__quote--closing {
-        top: 7.1rem;
-        right: -0.15rem;
-    }
-
-    .home-testimonial-card__quote--opening {
-        bottom: 0.55rem;
-        left: 1.25rem;
-    }
-
-    .home-testimonial-card__panel {
-        min-height: 20rem;
-        padding: 6.8rem 1.45rem 3rem;
-        border-radius: 1.6rem;
+        flex-basis: min(91vw, 26.1875rem);
+        padding:
+            min(40.18vw, 11.56rem)
+            0
+            min(5.87vw, 1.69rem);
     }
 
     .home-testimonials__cta {

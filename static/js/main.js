@@ -2206,19 +2206,34 @@ const createHomeTestimonialCard = (review, hiddenDuplicate = false) => {
     label.textContent = "testimonial";
     label.setAttribute("aria-hidden", "true");
 
-    const leftDots = document.createElement("span");
-    leftDots.className = "home-testimonial-card__dots home-testimonial-card__dots--left";
-    leftDots.setAttribute("aria-hidden", "true");
-
-    const rightDots = document.createElement("span");
-    rightDots.className = "home-testimonial-card__dots home-testimonial-card__dots--right";
-    rightDots.setAttribute("aria-hidden", "true");
+    const createDots = (position) => {
+        const dots = document.createElement("span");
+        dots.className = `home-testimonial-card__dots home-testimonial-card__dots--${position}`;
+        dots.setAttribute("aria-hidden", "true");
+        Array.from({ length: 5 }, () => document.createElement("i")).forEach((dot) => dots.append(dot));
+        return dots;
+    };
 
     const createQuote = (position) => {
+        const svgNamespace = "http://www.w3.org/2000/svg";
         const quote = document.createElement("span");
         quote.className = `home-testimonial-card__quote home-testimonial-card__quote--${position}`;
         quote.setAttribute("aria-hidden", "true");
-        quote.append(document.createElement("i"), document.createElement("i"));
+
+        const quoteShape = document.createElementNS(svgNamespace, "svg");
+        quoteShape.setAttribute("viewBox", "0 0 74 54");
+        quoteShape.setAttribute("focusable", "false");
+
+        [
+            "M0 0h18c9 0 15 7 15 16v33c0 3-2 5-5 5H15V29H0V0Z",
+            "M41 0h18c9 0 15 7 15 16v33c0 3-2 5-5 5H56V29H41V0Z"
+        ].forEach((pathData) => {
+            const path = document.createElementNS(svgNamespace, "path");
+            path.setAttribute("d", pathData);
+            quoteShape.append(path);
+        });
+
+        quote.append(quoteShape);
         return quote;
     };
 
@@ -2241,8 +2256,8 @@ const createHomeTestimonialCard = (review, hiddenDuplicate = false) => {
     panel.append(personName, stars, reviewCopy);
     card.append(
         label,
-        leftDots,
-        rightDots,
+        createDots("left"),
+        createDots("right"),
         orbit,
         createQuote("closing"),
         panel,
