@@ -2206,6 +2206,22 @@ const createHomeTestimonialCard = (review, hiddenDuplicate = false) => {
     label.textContent = "testimonial";
     label.setAttribute("aria-hidden", "true");
 
+    const leftDots = document.createElement("span");
+    leftDots.className = "home-testimonial-card__dots home-testimonial-card__dots--left";
+    leftDots.setAttribute("aria-hidden", "true");
+
+    const rightDots = document.createElement("span");
+    rightDots.className = "home-testimonial-card__dots home-testimonial-card__dots--right";
+    rightDots.setAttribute("aria-hidden", "true");
+
+    const createQuote = (position) => {
+        const quote = document.createElement("span");
+        quote.className = `home-testimonial-card__quote home-testimonial-card__quote--${position}`;
+        quote.setAttribute("aria-hidden", "true");
+        quote.append(document.createElement("i"), document.createElement("i"));
+        return quote;
+    };
+
     const panel = document.createElement("div");
     panel.className = "home-testimonial-card__panel";
 
@@ -2223,7 +2239,15 @@ const createHomeTestimonialCard = (review, hiddenDuplicate = false) => {
     reviewCopy.textContent = feedback;
 
     panel.append(personName, stars, reviewCopy);
-    card.append(label, orbit, panel);
+    card.append(
+        label,
+        leftDots,
+        rightDots,
+        orbit,
+        createQuote("closing"),
+        panel,
+        createQuote("opening")
+    );
     return card;
 };
 
