@@ -28,13 +28,15 @@ input, escapes HTML, uses a honeypot, and rate-limits repeated submissions from 
 same email address for one minute. Email clients that block remote images will use
 the matching solid navy and blue fallback colors until images are displayed.
 
-The contact form can optionally attach one document up to 5 MB. Allowed formats are
-PDF, DOCX, XLSX, PPTX, ODT, ODS, ODP, RTF, TXT, and CSV. The browser converts the
-document to Base64 for the static GitHub Pages form, then the backend checks the
-extension, declared MIME type, decoded size, executable signatures, and document
-container structure before adding the verified blob to the email. Executables,
-scripts, macro-enabled Office packages, archives, and renamed application files are
-rejected.
+The contact form can optionally attach up to 10 documents, with a 5 MB per-file and
+20 MB combined limit. Allowed formats are PDF, DOCX, XLSX, PPTX, ODT, ODS, ODP, RTF,
+TXT, and CSV. Visitors can choose or drag and drop files, review each filename and
+size, remove individual selections, and follow preparation/upload progress. The
+browser converts each document to Base64 for the static GitHub Pages form, then the
+backend checks the count, combined size, extension, declared MIME type, decoded size,
+executable signatures, and document container structure before adding every verified
+blob to the email. Executables, scripts, macro-enabled Office packages, archives, and
+renamed application files are rejected.
 
 Google applies daily MailApp quotas. A consumer Gmail account currently has a limit
 of 100 email recipients per day; Google Workspace accounts currently have a higher

@@ -143,3 +143,8 @@ when they carry the expected `jerome-portfolio-contact-mailer` source marker. Fo
 submission is enabled only on `https://jeromebalangue.github.io`; direct `file://`
 and local previews do not send email. The editable backend and deployment notes are
 in `integrations/google-apps-script/contact-mailer/`.
+
+The attachment field supports drag-and-drop or file selection for up to 10 verified
+documents, capped at 5 MB each and 20 MB combined. Selected filenames and sizes are
+shown before submission, and preparation/upload progress remains visible while the
+message is being delivered.

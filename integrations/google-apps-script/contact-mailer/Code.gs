@@ -10,7 +10,9 @@ const CONTACT_CONFIG = Object.freeze({
   maxNameLength: 100,
   maxEmailLength: 254,
   maxMessageLength: 5000,
+  maxAttachments: 10,
   maxAttachmentBytes: 5 * 1024 * 1024,
+  maxTotalAttachmentBytes: 20 * 1024 * 1024,
   maxUncompressedAttachmentBytes: 25 * 1024 * 1024
 });
 
@@ -57,7 +59,9 @@ function doGet() {
     success: true,
     message: "The Jerome portfolio contact mailer is ready.",
     documentAttachments: true,
-    maxAttachmentBytes: CONTACT_CONFIG.maxAttachmentBytes
+    maxAttachmentBytes: CONTACT_CONFIG.maxAttachmentBytes,
+    maxAttachments: CONTACT_CONFIG.maxAttachments,
+    maxTotalAttachmentBytes: CONTACT_CONFIG.maxTotalAttachmentBytes
   });
 }
 
@@ -90,7 +94,7 @@ function doPost(event) {
       throw new Error("DAILY_QUOTA_REACHED");
     }
 
-    const attachment = createDocumentAttachment_(request);
+    const attachments = createDocumentAttachments_(request);
 
     const submittedAt = Utilities.formatDate(
       new Date(),
@@ -98,20 +102,26 @@ function doPost(event) {
       "MMMM d, yyyy 'at' h:mm a"
     );
     const subject = `New portfolio inquiry from ${name}`;
-    const attachmentInfo = attachment ? {
-      name: attachment.name,
-      sizeBytes: attachment.sizeBytes
-    } : null;
+    const attachmentInfos = attachments.map(function (attachment) {
+      return {
+        name: attachment.name,
+        sizeBytes: attachment.sizeBytes
+      };
+    });
 
     const emailOptions = {
       to: CONTACT_CONFIG.destinationEmail,
       subject,
       name: CONTACT_CONFIG.senderName,
       replyTo: email,
-      body: createPlainTextEmail_(name, email, message, submittedAt, attachmentInfo),
-      htmlBody: createHtmlEmail_(name, email, message, submittedAt, attachmentInfo)
+      body: createPlainTextEmail_(name, email, message, submittedAt, attachmentInfos),
+      htmlBody: createHtmlEmail_(name, email, message, submittedAt, attachmentInfos)
     };
-    if (attachment) emailOptions.attachments = [attachment.blob];
+    if (attachments.length) {
+      emailOptions.attachments = attachments.map(function (attachment) {
+        return attachment.blob;
+      });
+    }
 
     MailApp.sendEmail(emailOptions);
 
@@ -124,6 +134,8 @@ function doPost(event) {
     const errorMessages = {
       RATE_LIMITED: "Please wait a minute before sending another message.",
       ATTACHMENT_TOO_LARGE: "Please attach a document no larger than 5 MB.",
+      TOO_MANY_ATTACHMENTS: "Please attach no more than 10 documents.",
+      ATTACHMENTS_TOO_LARGE: "Please keep the combined document size at or below 20 MB.",
       UNSUPPORTED_ATTACHMENT: "Only PDF, DOCX, XLSX, PPTX, ODT, ODS, ODP, RTF, TXT, or CSV documents are allowed.",
       INVALID_ATTACHMENT: "The attached file could not be verified as a safe document."
     };
@@ -174,6 +186,46 @@ function enforceRateLimit_(email) {
 
   if (cache.get(key)) throw new Error("RATE_LIMITED");
   cache.put(key, "1", CONTACT_CONFIG.rateLimitSeconds);
+}
+
+function createDocumentAttachments_(request) {
+  const rawPayload = String(request.attachmentsJson || "").trim();
+  if (!rawPayload) {
+    const legacyAttachment = createDocumentAttachment_(request);
+    return legacyAttachment ? [legacyAttachment] : [];
+  }
+
+  const maximumPayloadLength = Math.ceil(CONTACT_CONFIG.maxTotalAttachmentBytes / 3) * 4
+    + CONTACT_CONFIG.maxAttachments * 1024;
+  if (rawPayload.length > maximumPayloadLength) throw new Error("ATTACHMENTS_TOO_LARGE");
+
+  let entries;
+  try {
+    entries = JSON.parse(rawPayload);
+  } catch (error) {
+    throw new Error("INVALID_ATTACHMENT");
+  }
+  if (!Array.isArray(entries)) throw new Error("INVALID_ATTACHMENT");
+  if (entries.length > CONTACT_CONFIG.maxAttachments) throw new Error("TOO_MANY_ATTACHMENTS");
+
+  let totalBytes = 0;
+  return entries.map(function (entry) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+      throw new Error("INVALID_ATTACHMENT");
+    }
+    const attachment = createDocumentAttachment_({
+      attachmentName: entry.name,
+      attachmentType: entry.type,
+      attachmentSize: entry.size,
+      attachmentData: entry.data
+    });
+    if (!attachment) throw new Error("INVALID_ATTACHMENT");
+    totalBytes += attachment.sizeBytes;
+    if (totalBytes > CONTACT_CONFIG.maxTotalAttachmentBytes) {
+      throw new Error("ATTACHMENTS_TOO_LARGE");
+    }
+    return attachment;
+  });
 }
 
 function createDocumentAttachment_(request) {
@@ -346,7 +398,10 @@ function escapeHtml_(value) {
     .replace(/'/g, "&#039;");
 }
 
-function createPlainTextEmail_(name, email, message, submittedAt, attachmentInfo) {
+function createPlainTextEmail_(name, email, message, submittedAt, attachmentInfos) {
+  const attachments = Array.isArray(attachmentInfos)
+    ? attachmentInfos
+    : attachmentInfos ? [attachmentInfos] : [];
   const lines = [
     "NEW PORTFOLIO COLLABORATION INQUIRY",
     "",
@@ -357,17 +412,22 @@ function createPlainTextEmail_(name, email, message, submittedAt, attachmentInfo
     "PROJECT DETAILS",
     message
   ];
-  if (attachmentInfo) {
-    lines.push(
-      "",
-      `ATTACHED DOCUMENT: ${attachmentInfo.name} (${formatAttachmentSize_(attachmentInfo.sizeBytes)})`
-    );
+  if (attachments.length) {
+    lines.push("", `ATTACHED DOCUMENTS (${attachments.length})`);
+    attachments.forEach(function (attachmentInfo, index) {
+      lines.push(
+        `${index + 1}. ${attachmentInfo.name} (${formatAttachmentSize_(attachmentInfo.sizeBytes)})`
+      );
+    });
   }
   lines.push("", "Reply to this email to respond directly to the sender.");
   return lines.join("\n");
 }
 
-function createHtmlEmail_(name, email, message, submittedAt, attachmentInfo) {
+function createHtmlEmail_(name, email, message, submittedAt, attachmentInfos) {
+  const attachments = Array.isArray(attachmentInfos)
+    ? attachmentInfos
+    : attachmentInfos ? [attachmentInfos] : [];
   const safeName = escapeHtml_(name);
   const safeEmail = escapeHtml_(email);
   const safeMessage = escapeHtml_(message).replace(/\r?\n/g, "<br>");
@@ -377,13 +437,19 @@ function createHtmlEmail_(name, email, message, submittedAt, attachmentInfo) {
   const curtainImageUrl = CONTACT_CONFIG.curtainImageUrl;
   const profileImageUrl = CONTACT_CONFIG.profileImageUrl;
   const siteUrl = CONTACT_CONFIG.siteUrl;
-  const attachmentBlock = attachmentInfo ? `
+  const attachmentRows = attachments.map(function (attachmentInfo, index) {
+    return `
+                      <div style="${index ? "margin-top:10px;padding-top:10px;border-top:1px solid #cfdbed;" : ""}">
+                        <div style="font-size:13px;font-weight:700;line-height:1.5;color:#14294c;">${escapeHtml_(attachmentInfo.name)}</div>
+                        <div style="margin-top:2px;font-size:11px;color:#617695;">${escapeHtml_(formatAttachmentSize_(attachmentInfo.sizeBytes))} &middot; verified document</div>
+                      </div>`;
+  }).join("");
+  const attachmentBlock = attachments.length ? `
               <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin-top:14px;">
                 <tr>
                   <td style="padding:14px 16px;border:1px solid #b9ccec;border-radius:12px;background:#eaf1ff;color:#18345f;">
-                    <div style="font-size:9px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:#3975d5;">Attached document</div>
-                    <div style="margin-top:5px;font-size:13px;font-weight:700;line-height:1.5;color:#14294c;">${escapeHtml_(attachmentInfo.name)}</div>
-                    <div style="margin-top:2px;font-size:11px;color:#617695;">${escapeHtml_(formatAttachmentSize_(attachmentInfo.sizeBytes))} &middot; verified document</div>
+                    <div style="font-size:9px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:#3975d5;">Attached documents (${attachments.length})</div>
+                    <div style="margin-top:8px;">${attachmentRows}</div>
                   </td>
                 </tr>
               </table>` : "";
@@ -496,7 +562,9 @@ function createBrowserResponse_(payload) {
     success: Boolean(payload.success),
     message: String(payload.message || ""),
     documentAttachments: Boolean(payload.documentAttachments),
-    maxAttachmentBytes: Number(payload.maxAttachmentBytes || 0)
+    maxAttachmentBytes: Number(payload.maxAttachmentBytes || 0),
+    maxAttachments: Number(payload.maxAttachments || 0),
+    maxTotalAttachmentBytes: Number(payload.maxTotalAttachmentBytes || 0)
   }).replace(/</g, "\\u003c");
   const targetOrigin = JSON.stringify(CONTACT_CONFIG.allowedOrigin);
 

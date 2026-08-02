@@ -9,7 +9,7 @@
     <script src="static/js/head.js"></script>
     <link rel="preload" href="static/fonts/manrope-latin.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="preload" href="static/fonts/pinyon-script-latin.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="stylesheet" href="static/css/main.css?v=1.0.46">
+    <link rel="stylesheet" href="static/css/main.css?v=1.0.47">
     <link rel="preload" href="static/media/images/site/portfolio-background.png" as="image">
     <link rel="preload" href="static/media/images/home/jerome-hero-cutout.png" as="image">
     <link rel="preload" href="static/media/images/about/jerome-laptop-cutout.png" as="image">
@@ -602,20 +602,42 @@
                 </div>
 
                 <div class="contact-form__field contact-form__field--attachment">
-                    <label for="contact-attachment">Attach a document <span>(optional)</span></label>
-                    <input class="contact-form__file-input" id="contact-attachment" type="file"
+                    <label for="contact-attachment">Attach documents <span>Optional &middot; up to 10</span></label>
+                    <button class="contact-form__dropzone" type="button" data-contact-dropzone disabled
+                        aria-describedby="contact-attachment-status">
+                        <span class="contact-form__dropzone-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24">
+                                <path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M5 14v4.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V14"></path>
+                            </svg>
+                        </span>
+                        <span class="contact-form__dropzone-copy">
+                            <strong>Drag &amp; drop documents here</strong>
+                            <span>or click to choose files</span>
+                        </span>
+                    </button>
+                    <input id="contact-attachment" type="file" multiple hidden
                         accept=".pdf,.docx,.xlsx,.pptx,.odt,.ods,.odp,.rtf,.txt,.csv"
                         aria-describedby="contact-attachment-status" data-contact-attachment disabled>
                     <p class="contact-form__file-status" id="contact-attachment-status"
                         data-contact-attachment-status>
                         Checking secure document attachment support&hellip;
                     </p>
+                    <ul class="contact-form__file-list" data-contact-attachment-list hidden
+                        aria-label="Selected documents"></ul>
+                    <div class="contact-form__upload-progress" data-contact-upload-progress hidden>
+                        <div class="contact-form__upload-progress-copy">
+                            <span data-contact-upload-progress-label>Preparing documents&hellip;</span>
+                            <strong data-contact-upload-progress-percent>0%</strong>
+                        </div>
+                        <div class="contact-form__upload-progress-track" role="progressbar"
+                            aria-label="Document upload progress" aria-valuemin="0" aria-valuemax="100"
+                            aria-valuenow="0" data-contact-upload-progress-track>
+                            <span data-contact-upload-progress-bar></span>
+                        </div>
+                    </div>
                 </div>
 
-                <input type="hidden" name="attachmentName" data-contact-attachment-name>
-                <input type="hidden" name="attachmentType" data-contact-attachment-type>
-                <input type="hidden" name="attachmentSize" data-contact-attachment-size>
-                <input type="hidden" name="attachmentData" data-contact-attachment-data>
+                <input type="hidden" name="attachmentsJson" data-contact-attachments-json>
 
                 <input class="contact-form__honey" type="text" name="_honey" tabindex="-1" autocomplete="off"
                     aria-hidden="true">
@@ -815,7 +837,7 @@
     <script src="static/media/images/social-media-designs/gallery-data.js?v=1.0.16"></script>
     <script src="static/media/images/AI_generated_design/gallery-data.js?v=1.0.21"></script>
     <script src="static/media/videos/gallery-data.js?v=1.0.1"></script>
-    <script src="static/js/main.js?v=1.0.40"></script>
+    <script src="static/js/main.js?v=1.0.41"></script>
 </body>
 
 </html>

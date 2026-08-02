@@ -76,20 +76,26 @@ const contactFormSubmit = contactForm?.querySelector('button[type="submit"]');
 const contactFormSubmitLabel = document.querySelector("[data-contact-submit-label]");
 const contactMailerCapabilityFrame = document.querySelector('iframe[name="contact-mailer-capability-frame"]');
 const contactAttachmentInput = document.querySelector("[data-contact-attachment]");
+const contactAttachmentDropzone = document.querySelector("[data-contact-dropzone]");
 const contactAttachmentStatus = document.querySelector("[data-contact-attachment-status]");
-const contactAttachmentName = document.querySelector("[data-contact-attachment-name]");
-const contactAttachmentType = document.querySelector("[data-contact-attachment-type]");
-const contactAttachmentSize = document.querySelector("[data-contact-attachment-size]");
-const contactAttachmentData = document.querySelector("[data-contact-attachment-data]");
+const contactAttachmentList = document.querySelector("[data-contact-attachment-list]");
+const contactAttachmentsJson = document.querySelector("[data-contact-attachments-json]");
+const contactUploadProgress = document.querySelector("[data-contact-upload-progress]");
+const contactUploadProgressLabel = document.querySelector("[data-contact-upload-progress-label]");
+const contactUploadProgressPercent = document.querySelector("[data-contact-upload-progress-percent]");
+const contactUploadProgressTrack = document.querySelector("[data-contact-upload-progress-track]");
+const contactUploadProgressBar = document.querySelector("[data-contact-upload-progress-bar]");
 const siteToastStack = document.querySelector("[data-site-toast-stack]");
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 const CONTACT_SITE_ORIGIN = "https://jeromebalangue.github.io";
 const CONTACT_MAILER_SOURCE = "jerome-portfolio-contact-mailer";
 const CONTACT_MAILER_TIMEOUT_MS = 45000;
 const CONTACT_ATTACHMENT_MAX_BYTES = 5 * 1024 * 1024;
+const CONTACT_ATTACHMENT_MAX_COUNT = 10;
+const CONTACT_ATTACHMENTS_MAX_TOTAL_BYTES = 20 * 1024 * 1024;
 const SITE_TOAST_MAX_COUNT = 3;
 const SITE_TOAST_DEFAULT_DURATION_MS = 6000;
-const CONTACT_ATTACHMENT_DEFAULT_MESSAGE = "PDF, DOCX, XLSX, PPTX, ODT, ODS, ODP, RTF, TXT, or CSV · max 5 MB";
+const CONTACT_ATTACHMENT_DEFAULT_MESSAGE = "Up to 10 documents · 5 MB each · 20 MB total";
 const CONTACT_DOCUMENT_TYPES = Object.freeze({
     pdf: { mimeType: "application/pdf", accepted: ["application/pdf"] },
     docx: {
@@ -165,6 +171,8 @@ let wheelResetTimer = null;
 let pageNavigationLocked = false;
 let contactMailerTimeout = null;
 let contactStatusToast = null;
+let contactSelectedAttachments = [];
+let contactUploadProgressResetTimer = null;
 let educationExitArmed = false;
 let educationExitDirection = 0;
 let educationExitConfirmationReady = false;
@@ -2118,10 +2126,7 @@ const clearContactMailerTimeout = () => {
 };
 
 const clearContactAttachmentPayload = () => {
-    if (contactAttachmentName) contactAttachmentName.value = "";
-    if (contactAttachmentType) contactAttachmentType.value = "";
-    if (contactAttachmentSize) contactAttachmentSize.value = "";
-    if (contactAttachmentData) contactAttachmentData.value = "";
+    if (contactAttachmentsJson) contactAttachmentsJson.value = "";
 };
 
 const setContactAttachmentStatus = (message, state = "") => {
@@ -2134,14 +2139,130 @@ const setContactAttachmentStatus = (message, state = "") => {
     }
 };
 
-const resetContactAttachmentStatus = () => {
-    clearContactAttachmentPayload();
-    setContactAttachmentStatus(CONTACT_ATTACHMENT_DEFAULT_MESSAGE);
-};
-
 const formatContactAttachmentSize = (bytes) => {
     if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
+
+const getContactAttachmentKey = (file) => (
+    `${file.name}\u0000${file.size}\u0000${file.lastModified}`
+);
+
+const getContactAttachmentsTotalBytes = (files = contactSelectedAttachments) => (
+    files.reduce((total, file) => total + file.size, 0)
+);
+
+const hideContactUploadProgress = () => {
+    if (contactUploadProgressResetTimer !== null) {
+        window.clearTimeout(contactUploadProgressResetTimer);
+        contactUploadProgressResetTimer = null;
+    }
+    if (!contactUploadProgress) return;
+    contactUploadProgress.hidden = true;
+    contactUploadProgress.classList.remove("is-indeterminate");
+    delete contactUploadProgress.dataset.state;
+};
+
+const setContactUploadProgress = (progress, label, options = {}) => {
+    if (
+        !contactUploadProgress
+        || !contactUploadProgressLabel
+        || !contactUploadProgressPercent
+        || !contactUploadProgressTrack
+        || !contactUploadProgressBar
+    ) return;
+
+    const value = Math.min(100, Math.max(0, Math.round(progress)));
+    contactUploadProgress.hidden = false;
+    contactUploadProgress.classList.toggle("is-indeterminate", options.indeterminate === true);
+    if (options.state) {
+        contactUploadProgress.dataset.state = options.state;
+    } else {
+        delete contactUploadProgress.dataset.state;
+    }
+    contactUploadProgressLabel.textContent = label;
+    contactUploadProgressPercent.textContent = options.indeterminate ? "" : `${value}%`;
+    contactUploadProgressTrack.setAttribute("aria-valuenow", String(value));
+    contactUploadProgressBar.style.setProperty("--contact-upload-progress", `${value}%`);
+};
+
+const setContactAttachmentsLocked = (locked) => {
+    if (contactAttachmentInput) {
+        contactAttachmentInput.disabled = locked || !contactDocumentAttachmentsEnabled;
+    }
+    if (contactAttachmentDropzone) {
+        contactAttachmentDropzone.disabled = locked || !contactDocumentAttachmentsEnabled;
+    }
+    contactAttachmentList?.querySelectorAll(".contact-form__file-remove").forEach((button) => {
+        button.disabled = locked;
+    });
+};
+
+const renderContactAttachmentList = () => {
+    if (!contactAttachmentList || !contactAttachmentDropzone) return;
+    contactAttachmentList.replaceChildren();
+    contactAttachmentList.hidden = contactSelectedAttachments.length === 0;
+    contactAttachmentDropzone.dataset.hasFiles = String(contactSelectedAttachments.length > 0);
+
+    contactSelectedAttachments.forEach((file) => {
+        const extension = String(file.name).split(".").pop().slice(0, 5) || "file";
+        const item = document.createElement("li");
+        item.className = "contact-form__file-item";
+
+        const extensionLabel = document.createElement("span");
+        extensionLabel.className = "contact-form__file-extension";
+        extensionLabel.textContent = extension;
+
+        const details = document.createElement("span");
+        details.className = "contact-form__file-details";
+        const name = document.createElement("span");
+        name.className = "contact-form__file-name";
+        name.textContent = file.name;
+        name.title = file.name;
+        const size = document.createElement("span");
+        size.className = "contact-form__file-size";
+        size.textContent = formatContactAttachmentSize(file.size);
+        details.append(name, size);
+
+        const removeButton = document.createElement("button");
+        removeButton.className = "contact-form__file-remove";
+        removeButton.type = "button";
+        removeButton.setAttribute("aria-label", `Remove ${file.name}`);
+        removeButton.textContent = "\u00d7";
+        removeButton.addEventListener("click", () => {
+            contactSelectedAttachments = contactSelectedAttachments.filter(
+                (selectedFile) => getContactAttachmentKey(selectedFile) !== getContactAttachmentKey(file)
+            );
+            clearContactAttachmentPayload();
+            renderContactAttachmentList();
+            updateContactAttachmentSummary();
+        });
+
+        item.append(extensionLabel, details, removeButton);
+        contactAttachmentList.append(item);
+    });
+};
+
+const updateContactAttachmentSummary = () => {
+    if (contactSelectedAttachments.length === 0) {
+        setContactAttachmentStatus(CONTACT_ATTACHMENT_DEFAULT_MESSAGE);
+        return;
+    }
+    const count = contactSelectedAttachments.length;
+    const totalSize = formatContactAttachmentSize(getContactAttachmentsTotalBytes());
+    setContactAttachmentStatus(
+        `${count} document${count === 1 ? "" : "s"} selected · ${totalSize} of 20 MB`,
+        "ready"
+    );
+};
+
+const resetContactAttachmentStatus = () => {
+    clearContactAttachmentPayload();
+    contactSelectedAttachments = [];
+    if (contactAttachmentInput) contactAttachmentInput.value = "";
+    renderContactAttachmentList();
+    setContactAttachmentStatus(CONTACT_ATTACHMENT_DEFAULT_MESSAGE);
+    hideContactUploadProgress();
 };
 
 const validateContactAttachment = (file) => {
@@ -2168,8 +2289,13 @@ const validateContactAttachment = (file) => {
     return { extension, mimeType: documentType.mimeType };
 };
 
-const readContactAttachment = (file) => new Promise((resolve, reject) => {
+const readContactAttachment = (file, onProgress = null) => new Promise((resolve, reject) => {
     const reader = new FileReader();
+    reader.addEventListener("progress", (event) => {
+        if (event.lengthComputable && typeof onProgress === "function") {
+            onProgress(event.loaded, event.total);
+        }
+    });
     reader.addEventListener("load", () => {
         const result = String(reader.result || "");
         const separatorIndex = result.indexOf(",");
@@ -2188,6 +2314,54 @@ const readContactAttachment = (file) => new Promise((resolve, reject) => {
     reader.readAsDataURL(file);
 });
 
+const addContactAttachments = (files) => {
+    const incomingFiles = [...files];
+    if (incomingFiles.length === 0) return;
+
+    const nextFiles = [...contactSelectedAttachments];
+    const selectedKeys = new Set(nextFiles.map(getContactAttachmentKey));
+    let totalBytes = getContactAttachmentsTotalBytes(nextFiles);
+    const errors = [];
+
+    incomingFiles.forEach((file) => {
+        const fileKey = getContactAttachmentKey(file);
+        if (selectedKeys.has(fileKey)) {
+            errors.push(`${file.name} is already selected.`);
+            return;
+        }
+        if (nextFiles.length >= CONTACT_ATTACHMENT_MAX_COUNT) {
+            errors.push("You can attach up to 10 documents.");
+            return;
+        }
+
+        try {
+            validateContactAttachment(file);
+        } catch (error) {
+            errors.push(`${file.name}: ${error.message}`);
+            return;
+        }
+
+        if (totalBytes + file.size > CONTACT_ATTACHMENTS_MAX_TOTAL_BYTES) {
+            errors.push("The selected documents cannot exceed 20 MB in total.");
+            return;
+        }
+
+        nextFiles.push(file);
+        selectedKeys.add(fileKey);
+        totalBytes += file.size;
+    });
+
+    contactSelectedAttachments = nextFiles;
+    clearContactAttachmentPayload();
+    renderContactAttachmentList();
+    updateContactAttachmentSummary();
+
+    if (errors.length > 0) {
+        setContactAttachmentStatus(errors[0], "error");
+        showContactToast(errors[0], "error", "Document not added", 8000);
+    }
+};
+
 const isTrustedContactMailerOrigin = (origin) => (
     origin === "https://script.google.com"
     || /^https:\/\/[a-z0-9-]+\.googleusercontent\.com$/iu.test(origin)
@@ -2204,8 +2378,10 @@ window.addEventListener("message", (event) => {
     if (event.data.type === "capabilities") {
         contactMailerCapabilityProbePending = false;
         contactDocumentAttachmentsEnabled = event.data.documentAttachments === true
-            && Number(event.data.maxAttachmentBytes) >= CONTACT_ATTACHMENT_MAX_BYTES;
-        contactAttachmentInput.disabled = !contactDocumentAttachmentsEnabled;
+            && Number(event.data.maxAttachmentBytes) >= CONTACT_ATTACHMENT_MAX_BYTES
+            && Number(event.data.maxAttachments) >= CONTACT_ATTACHMENT_MAX_COUNT
+            && Number(event.data.maxTotalAttachmentBytes) >= CONTACT_ATTACHMENTS_MAX_TOTAL_BYTES;
+        setContactAttachmentsLocked(false);
         if (contactDocumentAttachmentsEnabled) {
             resetContactAttachmentStatus();
         } else {
@@ -2223,11 +2399,27 @@ window.addEventListener("message", (event) => {
 
     clearContactMailerTimeout();
     contactFormSubmit.disabled = false;
+    setContactAttachmentsLocked(false);
 
     if (event.data.success) {
         const successMessage = event.data.message || "Thank you! Your message was sent to Jerome.";
+        const sentAttachmentCount = contactSelectedAttachments.length;
         contactForm.reset();
-        resetContactAttachmentStatus();
+        clearContactAttachmentPayload();
+        contactSelectedAttachments = [];
+        if (contactAttachmentInput) contactAttachmentInput.value = "";
+        renderContactAttachmentList();
+        setContactAttachmentStatus(CONTACT_ATTACHMENT_DEFAULT_MESSAGE);
+        if (sentAttachmentCount > 0) {
+            setContactUploadProgress(
+                100,
+                `${sentAttachmentCount} document${sentAttachmentCount === 1 ? "" : "s"} uploaded`,
+                { state: "success" }
+            );
+            contactUploadProgressResetTimer = window.setTimeout(hideContactUploadProgress, 1600);
+        } else {
+            hideContactUploadProgress();
+        }
         contactForm.dataset.state = "success";
         contactFormSubmitLabel.textContent = "Message sent";
         contactFormStatus.textContent = successMessage;
@@ -2239,18 +2431,23 @@ window.addEventListener("message", (event) => {
     contactForm.dataset.state = "error";
     contactFormSubmitLabel.textContent = "Try again";
     contactFormStatus.textContent = errorMessage;
+    if (contactSelectedAttachments.length > 0) {
+        setContactUploadProgress(100, "Upload failed. Your selected documents are still ready.", {
+            state: "error"
+        });
+    }
     showContactToast(errorMessage, "error", "Message not sent", 8000);
 });
 
-if (contactAttachmentInput && contactMailerCapabilityFrame && contactForm) {
+if (contactAttachmentInput && contactAttachmentDropzone && contactMailerCapabilityFrame && contactForm) {
     contactMailerCapabilityProbePending = true;
-    contactAttachmentInput.disabled = true;
+    setContactAttachmentsLocked(true);
     contactMailerCapabilityFrame.src = `${contactForm.action}?capabilities=document-attachments-v1`;
     window.setTimeout(() => {
         if (!contactMailerCapabilityProbePending) return;
         contactMailerCapabilityProbePending = false;
         contactDocumentAttachmentsEnabled = false;
-        contactAttachmentInput.disabled = true;
+        setContactAttachmentsLocked(false);
         setContactAttachmentStatus(
             "Document attachments are temporarily unavailable. You can still send your message."
         );
@@ -2258,24 +2455,32 @@ if (contactAttachmentInput && contactMailerCapabilityFrame && contactForm) {
 }
 
 contactAttachmentInput?.addEventListener("change", () => {
-    clearContactAttachmentPayload();
-    const file = contactAttachmentInput.files?.[0];
-    if (!file) {
-        resetContactAttachmentStatus();
-        return;
-    }
+    addContactAttachments(contactAttachmentInput.files || []);
+    contactAttachmentInput.value = "";
+});
 
-    try {
-        validateContactAttachment(file);
-        setContactAttachmentStatus(
-            `${file.name} · ${formatContactAttachmentSize(file.size)} · ready to attach`,
-            "ready"
-        );
-    } catch (error) {
-        contactAttachmentInput.value = "";
-        setContactAttachmentStatus(error.message, "error");
-        showContactToast(error.message, "error", "Document not attached", 8000);
+contactAttachmentDropzone?.addEventListener("click", () => {
+    if (!contactAttachmentDropzone.disabled) contactAttachmentInput?.click();
+});
+
+contactAttachmentDropzone?.addEventListener("dragover", (event) => {
+    if (contactAttachmentDropzone.disabled) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
+    contactAttachmentDropzone.classList.add("is-dragging");
+});
+
+contactAttachmentDropzone?.addEventListener("dragleave", (event) => {
+    if (!contactAttachmentDropzone.contains(event.relatedTarget)) {
+        contactAttachmentDropzone.classList.remove("is-dragging");
     }
+});
+
+contactAttachmentDropzone?.addEventListener("drop", (event) => {
+    if (contactAttachmentDropzone.disabled) return;
+    event.preventDefault();
+    contactAttachmentDropzone.classList.remove("is-dragging");
+    addContactAttachments(event.dataTransfer.files || []);
 });
 
 contactForm?.addEventListener("submit", async (event) => {
@@ -2297,50 +2502,90 @@ contactForm?.addEventListener("submit", async (event) => {
         return;
     }
 
-    const attachment = contactDocumentAttachmentsEnabled
-        ? contactAttachmentInput?.files?.[0] || null
-        : null;
+    const attachments = contactDocumentAttachmentsEnabled
+        ? [...contactSelectedAttachments]
+        : [];
     clearContactAttachmentPayload();
-    if (attachment) {
+    if (attachments.length > 0) {
         contactForm.dataset.state = "preparing";
         contactFormSubmit.disabled = true;
-        contactFormSubmitLabel.textContent = "Preparing file...";
-        contactFormStatus.textContent = "Checking and securely preparing your document...";
+        setContactAttachmentsLocked(true);
+        contactFormSubmitLabel.textContent = "Preparing documents...";
+        contactFormStatus.textContent = "Checking and securely preparing your documents...";
+        setContactUploadProgress(0, `Preparing 1 of ${attachments.length} documents...`);
         showContactToast(
-            "Checking and securely preparing your document...",
+            `Checking and securely preparing ${attachments.length} document${attachments.length === 1 ? "" : "s"}...`,
             "info",
-            "Preparing document",
+            "Preparing documents",
             0
         );
 
         try {
-            const documentType = validateContactAttachment(attachment);
-            const encodedDocument = await readContactAttachment(attachment);
-            if (contactAttachmentInput.files?.[0] !== attachment) {
-                throw new Error("The selected document changed. Please submit again.");
+            if (attachments.length > CONTACT_ATTACHMENT_MAX_COUNT) {
+                throw new Error("You can attach up to 10 documents.");
             }
-            contactAttachmentName.value = attachment.name;
-            contactAttachmentType.value = documentType.mimeType;
-            contactAttachmentSize.value = String(attachment.size);
-            contactAttachmentData.value = encodedDocument;
+            const totalBytes = getContactAttachmentsTotalBytes(attachments);
+            if (totalBytes > CONTACT_ATTACHMENTS_MAX_TOTAL_BYTES) {
+                throw new Error("The selected documents cannot exceed 20 MB in total.");
+            }
+
+            const attachmentKeys = attachments.map(getContactAttachmentKey).join("\u0001");
+            const encodedAttachments = [];
+            let completedBytes = 0;
+
+            for (let index = 0; index < attachments.length; index += 1) {
+                const attachment = attachments[index];
+                const documentType = validateContactAttachment(attachment);
+                const encodedDocument = await readContactAttachment(attachment, (loadedBytes) => {
+                    const progress = ((completedBytes + loadedBytes) / totalBytes) * 100;
+                    setContactUploadProgress(
+                        progress,
+                        `Preparing ${index + 1} of ${attachments.length} documents...`
+                    );
+                });
+                if (contactSelectedAttachments.map(getContactAttachmentKey).join("\u0001") !== attachmentKeys) {
+                    throw new Error("The selected documents changed. Please submit again.");
+                }
+                encodedAttachments.push({
+                    name: attachment.name,
+                    type: documentType.mimeType,
+                    size: attachment.size,
+                    data: encodedDocument
+                });
+                completedBytes += attachment.size;
+                setContactUploadProgress(
+                    (completedBytes / totalBytes) * 100,
+                    `Prepared ${index + 1} of ${attachments.length} documents`
+                );
+            }
+
+            contactAttachmentsJson.value = JSON.stringify(encodedAttachments);
         } catch (error) {
             const attachmentErrorMessage = error.message || "The selected document could not be attached.";
             clearContactAttachmentPayload();
             contactForm.dataset.state = "error";
             contactFormSubmit.disabled = false;
+            setContactAttachmentsLocked(false);
             contactFormSubmitLabel.textContent = "Try again";
             contactFormStatus.textContent = attachmentErrorMessage;
+            setContactUploadProgress(100, attachmentErrorMessage, { state: "error" });
             showContactToast(attachmentErrorMessage, "error", "Document not attached", 8000);
             return;
         }
+    } else {
+        hideContactUploadProgress();
     }
 
     contactForm.dataset.state = "sending";
     contactFormSubmit.disabled = true;
+    setContactAttachmentsLocked(true);
     contactFormSubmitLabel.textContent = "Sending...";
-    contactFormStatus.textContent = attachment
-        ? "Sending your message and document securely..."
+    contactFormStatus.textContent = attachments.length > 0
+        ? `Uploading ${attachments.length} document${attachments.length === 1 ? "" : "s"} and sending your message securely...`
         : "Sending your message securely...";
+    if (attachments.length > 0) {
+        setContactUploadProgress(100, "Uploading documents securely...", { indeterminate: true });
+    }
     showContactToast(contactFormStatus.textContent, "info", "Sending message", 0);
 
     clearContactMailerTimeout();
@@ -2348,8 +2593,14 @@ contactForm?.addEventListener("submit", async (event) => {
         const delayedMessage = "Your message was submitted, but delivery confirmation is delayed. Please wait before sending it again.";
         contactForm.dataset.state = "pending";
         contactFormSubmit.disabled = false;
+        setContactAttachmentsLocked(false);
         contactFormSubmitLabel.textContent = "Message submitted";
         contactFormStatus.textContent = delayedMessage;
+        if (attachments.length > 0) {
+            setContactUploadProgress(100, "Upload submitted; confirmation is delayed.", {
+                state: "success"
+            });
+        }
         showContactToast(delayedMessage, "warning", "Message submitted", 9000);
         contactMailerTimeout = null;
     }, CONTACT_MAILER_TIMEOUT_MS);

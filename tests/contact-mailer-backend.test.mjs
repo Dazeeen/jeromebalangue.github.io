@@ -17,7 +17,7 @@ function renderEmail(name, email, message, attachmentInfo = null) {
     return context.renderContactEmail(name, email, message, "August 1, 2026 at 2:30 PM", attachmentInfo);
 }
 
-function createAttachmentValidator(zipEntries = []) {
+function createAttachmentValidator(zipEntries = [], validatorName = "createDocumentAttachment_") {
     const createBlob = (bytes, mimeType = "application/octet-stream", name = "document") => ({
         getBytes: () => [...bytes],
         getDataAsString: () => Buffer.from(bytes.map((byte) => byte & 255)).toString("utf8"),
@@ -42,7 +42,7 @@ function createAttachmentValidator(zipEntries = []) {
         }
     };
     vm.runInNewContext(
-        `${backend}\nglobalThis.validateDocumentAttachment = createDocumentAttachment_;`,
+        `${backend}\nglobalThis.validateDocumentAttachment = ${validatorName};`,
         context
     );
     return context.validateDocumentAttachment;
@@ -93,6 +93,23 @@ test("the rendered email shows a safely escaped attached-document summary", () =
     assert.match(html, /2 KB &middot; verified document/u);
 });
 
+test("the rendered email lists every attached document with its verified size", () => {
+    const html = renderEmail(
+        "Avery",
+        "hello@example.com",
+        "Please review both files.",
+        [
+            { name: "launch & media.pdf", sizeBytes: 1536 },
+            { name: "production-notes.txt", sizeBytes: 3072 }
+        ]
+    );
+
+    assert.match(html, /Attached documents \(2\)/u);
+    assert.match(html, /launch &amp; media\.pdf/u);
+    assert.match(html, /production-notes\.txt/u);
+    assert.match(html, /3 KB &middot; verified document/u);
+});
+
 test("the backend accepts a real PDF signature and rejects an executable renamed as PDF", () => {
     const validateAttachment = createAttachmentValidator();
     const pdf = Buffer.from("%PDF-1.7\nPortfolio brief", "utf8");
@@ -138,15 +155,51 @@ test("the backend verifies Office package structure and rejects embedded macro p
     assert.throws(() => validateMacroPackage(request), /INVALID_ATTACHMENT/u);
 });
 
+test("the backend accepts multiple documents and enforces the 10-document limit", () => {
+    const validateAttachments = createAttachmentValidator([], "createDocumentAttachments_");
+    const firstPdf = Buffer.from("%PDF-1.7\nFirst brief", "utf8");
+    const secondPdf = Buffer.from("%PDF-1.7\nSecond brief", "utf8");
+    const attachments = validateAttachments({
+        attachmentsJson: JSON.stringify([
+            {
+                name: "first-brief.pdf",
+                type: "application/pdf",
+                size: firstPdf.length,
+                data: firstPdf.toString("base64")
+            },
+            {
+                name: "second-brief.pdf",
+                type: "application/pdf",
+                size: secondPdf.length,
+                data: secondPdf.toString("base64")
+            }
+        ])
+    });
+
+    assert.equal(attachments.length, 2);
+    assert.equal(attachments[0].name, "first-brief.pdf");
+    assert.equal(attachments[1].name, "second-brief.pdf");
+
+    assert.throws(() => validateAttachments({
+        attachmentsJson: JSON.stringify(Array.from({ length: 11 }, (_, index) => ({
+            name: `brief-${index}.pdf`
+        })))
+    }), /TOO_MANY_ATTACHMENTS/u);
+});
+
 test("the attachment backend has a strict document allowlist and package checks", () => {
     for (const extension of ["pdf", "docx", "xlsx", "pptx", "odt", "ods", "odp", "rtf", "txt", "csv"]) {
         assert.match(backend, new RegExp(`${extension}: Object\\.freeze`));
     }
+    assert.match(backend, /maxAttachments: 10/u);
     assert.match(backend, /maxAttachmentBytes: 5 \* 1024 \* 1024/u);
+    assert.match(backend, /maxTotalAttachmentBytes: 20 \* 1024 \* 1024/u);
     assert.match(backend, /hasExecutableSignature_\(bytes\)/u);
     assert.match(backend, /vbaProject\\\.bin/u);
     assert.match(backend, /Utilities\.unzip\(blob\)/u);
-    assert.match(backend, /emailOptions\.attachments = \[attachment\.blob\]/u);
+    assert.match(backend, /emailOptions\.attachments = attachments\.map/u);
+    assert.match(backend, /entries\.length > CONTACT_CONFIG\.maxAttachments/u);
+    assert.match(backend, /totalBytes > CONTACT_CONFIG\.maxTotalAttachmentBytes/u);
     assert.doesNotMatch(backend, /^\s*(?:exe|msi|bat|cmd|ps1): Object\.freeze/gmu);
 });
 
@@ -169,5 +222,7 @@ test("the Apps Script mailer advertises attachment support before the form enabl
     assert.match(backend, /type: "capabilities"/u);
     assert.match(backend, /documentAttachments: true/u);
     assert.match(backend, /maxAttachmentBytes: CONTACT_CONFIG\.maxAttachmentBytes/u);
+    assert.match(backend, /maxAttachments: CONTACT_CONFIG\.maxAttachments/u);
+    assert.match(backend, /maxTotalAttachmentBytes: CONTACT_CONFIG\.maxTotalAttachmentBytes/u);
     assert.match(backend, /type: String\(payload\.type \|\| "result"\)/u);
 });

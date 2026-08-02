@@ -35,8 +35,10 @@ test("the contact page keeps every collaboration offer and direct channel", () =
 test("the line-style contact form sends through the custom Apps Script mailer", () => {
     assert.match(html, /<form class="contact-form"[\s\S]*?action="https:\/\/script\.google\.com\/macros\/s\/AKfycbxwS5NBw7Lqgjas7Kh7P2QtIq_b2PMLZejBw3RN6jmFLuJ493m_xT1vEsq8akp2TU0F-A\/exec"[\s\S]*?method="POST" target="contact-mailer-frame" data-contact-form>/u);
     assert.match(html, /name="name"[\s\S]*?name="email"[\s\S]*?name="message"/u);
-    assert.match(html, /id="contact-attachment" type="file"[\s\S]*?accept="\.pdf,\.docx,\.xlsx,\.pptx,\.odt,\.ods,\.odp,\.rtf,\.txt,\.csv"/u);
-    assert.match(html, /name="attachmentName"[\s\S]*?name="attachmentType"[\s\S]*?name="attachmentSize"[\s\S]*?name="attachmentData"/u);
+    assert.match(html, /data-contact-dropzone[\s\S]*?Drag &amp; drop documents here[\s\S]*?click to choose files/u);
+    assert.match(html, /id="contact-attachment" type="file" multiple hidden[\s\S]*?accept="\.pdf,\.docx,\.xlsx,\.pptx,\.odt,\.ods,\.odp,\.rtf,\.txt,\.csv"/u);
+    assert.match(html, /name="attachmentsJson" data-contact-attachments-json/u);
+    assert.match(html, /data-contact-attachment-list[\s\S]*?data-contact-upload-progress[\s\S]*?role="progressbar"/u);
     assert.match(html, /name="_honey"/u);
     assert.match(html, /<iframe name="contact-mailer-frame"[\s\S]*?hidden/u);
     assert.match(html, /<iframe name="contact-mailer-capability-frame"[\s\S]*?hidden/u);
@@ -46,7 +48,7 @@ test("the line-style contact form sends through the custom Apps Script mailer", 
     assert.match(script, /event\.data\.source !== CONTACT_MAILER_SOURCE/u);
     assert.match(script, /event\.data\.type === "capabilities"/u);
     assert.match(script, /event\.data\.documentAttachments === true/u);
-    assert.match(script, /contactAttachmentInput\.disabled = !contactDocumentAttachmentsEnabled/u);
+    assert.match(script, /const setContactAttachmentsLocked = \(locked\)/u);
     assert.match(script, /event\.data\.type === "result"/u);
     assert.doesNotMatch(script, /event\.source === contactMailer/u);
     assert.match(script, /HTMLFormElement\.prototype\.submit\.call\(contactForm\)/u);
@@ -55,10 +57,16 @@ test("the line-style contact form sends through the custom Apps Script mailer", 
     assert.match(script, /contactForm\.dataset\.state = "error"/u);
     assert.match(script, /contactForm\.dataset\.state = "pending"/u);
     assert.doesNotMatch(script, /The email service took too long to respond\. Please try again\./u);
+    assert.match(script, /CONTACT_ATTACHMENT_MAX_COUNT = 10/u);
     assert.match(script, /CONTACT_ATTACHMENT_MAX_BYTES = 5 \* 1024 \* 1024/u);
+    assert.match(script, /CONTACT_ATTACHMENTS_MAX_TOTAL_BYTES = 20 \* 1024 \* 1024/u);
     assert.match(script, /FileReader\(\)/u);
+    assert.match(script, /reader\.addEventListener\("progress"/u);
     assert.match(script, /readAsDataURL\(file\)/u);
-    assert.match(script, /validateContactAttachment\(attachment\)/u);
+    assert.match(script, /const addContactAttachments = \(files\)/u);
+    assert.match(script, /contactAttachmentDropzone\?\.addEventListener\("dragover"/u);
+    assert.match(script, /contactAttachmentDropzone\?\.addEventListener\("drop"/u);
+    assert.match(script, /contactAttachmentsJson\.value = JSON\.stringify\(encodedAttachments\)/u);
     assert.doesNotMatch(html, /\.exe|\.msi|\.bat|\.cmd|\.ps1|\.app/u);
     assert.doesNotMatch(script, /formsubmit\.co/u);
 });
@@ -76,7 +84,10 @@ test("the reference-inspired composition is responsive and cache-busted", () => 
     assert.match(css, /\.contact-section\s*\{[\s\S]*?repeating-linear-gradient[\s\S]*?portfolio-background\.png/u);
     assert.match(css, /\.contact-intro__shape\s*\{[\s\S]*?border-radius/u);
     assert.match(css, /@media \(max-width: 720px\)\s*\{[\s\S]*?\.contact-section/u);
-    assert.match(css, /\.contact-form__file-input::file-selector-button/u);
-    assert.match(html, /static\/css\/main\.css\?v=1\.0\.46/u);
-    assert.match(html, /static\/js\/main\.js\?v=1\.0\.40/u);
+    assert.match(css, /\.contact-form__dropzone/u);
+    assert.match(css, /\.contact-form__file-item/u);
+    assert.match(css, /\.contact-form__upload-progress-track/u);
+    assert.match(css, /@keyframes contact-upload-indeterminate/u);
+    assert.match(html, /static\/css\/main\.css\?v=1\.0\.47/u);
+    assert.match(html, /static\/js\/main\.js\?v=1\.0\.41/u);
 });
