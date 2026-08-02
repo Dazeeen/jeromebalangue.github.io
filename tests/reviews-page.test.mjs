@@ -47,9 +47,22 @@ test("published reviews render from the trusted Apps Script response without exp
     assert.match(script, /const renderPublishedReviews = \(reviews\)/u);
     assert.match(script, /reviewCopy\.textContent = feedback/u);
     assert.match(script, /personName\.textContent = name/u);
+    assert.doesNotMatch(script, /review-card__avatar/u);
     assert.match(script, /"★"\.repeat\(rating\)/u);
     assert.match(script, /\?mode=reviews&nonce=\$\{Date\.now\(\)\}/u);
     assert.doesNotMatch(script, /review\?\.email/u);
+});
+
+test("published reviews use a centered three-card composition with faded side cards", () => {
+    assert.match(script, /const reviewCards = \[\]/u);
+    assert.match(script, /activeReviewIndex = safeReviews\.length > 1 \? 1 : 0/u);
+    assert.match(script, /card\.classList\.toggle\("is-active", isActive\)/u);
+    assert.match(script, /inline: "center"/u);
+    assert.match(script, /\["ArrowLeft", "ArrowRight"\]/u);
+    assert.match(css, /\.reviews-feed__list\s*\{[\s\S]*?display: flex;[\s\S]*?scroll-snap-type: x mandatory;/u);
+    assert.match(css, /\.review-card\s*\{[\s\S]*?flex: 0 0 27%;[\s\S]*?opacity: 0\.28;/u);
+    assert.match(css, /\.review-card\.is-active\s*\{[\s\S]*?flex-basis: 42%;[\s\S]*?opacity: 1;/u);
+    assert.doesNotMatch(css, /\.review-card__avatar/u);
 });
 
 test("review submission uses the existing secure iframe and lower-right toast flow", () => {
@@ -70,6 +83,6 @@ test("the review layout adopts the blue-curtain theme and is responsive", () => 
     assert.match(css, /\.review-form__stars label\s*\{[\s\S]*?font-size: clamp\(1\.9rem, 2\.5vw, 2\.35rem\);/u);
     assert.match(css, /\.review-form__field input,[\s\S]*?font-size: clamp\(0\.76rem, 0\.9vw, 0\.84rem\);/u);
     assert.match(css, /@media \(max-width: 780px\)[\s\S]*?\.reviews-section__shell/u);
-    assert.match(html, /static\/css\/main\.css\?v=1\.0\.49/u);
-    assert.match(html, /static\/js\/main\.js\?v=1\.0\.42/u);
+    assert.match(html, /static\/css\/main\.css\?v=1\.0\.50/u);
+    assert.match(html, /static\/js\/main\.js\?v=1\.0\.43/u);
 });

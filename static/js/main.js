@@ -2179,6 +2179,7 @@ const renderPublishedReviews = (reviews) => {
     if (!reviewList || !reviewCount) return;
     const safeReviews = Array.isArray(reviews) ? reviews : [];
     reviewList.replaceChildren();
+    reviewList.onscroll = null;
     reviewList.setAttribute("aria-busy", "false");
     reviewCount.textContent = `${safeReviews.length} review${safeReviews.length === 1 ? "" : "s"}`;
 
@@ -2189,7 +2190,8 @@ const renderPublishedReviews = (reviews) => {
         return;
     }
 
-    safeReviews.forEach((review) => {
+    const reviewCards = [];
+    safeReviews.forEach((review, index) => {
         const name = String(review?.name || "Portfolio client").trim() || "Portfolio client";
         const company = String(review?.company || "Independent client").trim() || "Independent client";
         const title = String(review?.title || "A creative collaboration").trim();
@@ -2198,20 +2200,18 @@ const renderPublishedReviews = (reviews) => {
 
         const card = document.createElement("article");
         card.className = "review-card";
+        card.dataset.reviewCardIndex = String(index);
+        card.tabIndex = 0;
 
         const person = document.createElement("div");
         person.className = "review-card__person";
-        const avatar = document.createElement("span");
-        avatar.className = "review-card__avatar";
-        avatar.setAttribute("aria-hidden", "true");
-        avatar.textContent = Array.from(name)[0]?.toUpperCase() || "J";
         const identity = document.createElement("span");
         const personName = document.createElement("strong");
         personName.textContent = name;
         const personMeta = document.createElement("span");
         personMeta.textContent = `${company} · ${formatReviewDate(review?.approvedAt)}`;
         identity.append(personName, personMeta);
-        person.append(avatar, identity);
+        person.append(identity);
 
         const stars = document.createElement("div");
         stars.className = "review-card__stars";
@@ -2227,7 +2227,59 @@ const renderPublishedReviews = (reviews) => {
 
         card.append(person, stars, heading, reviewCopy);
         reviewList.append(card);
+        reviewCards.push(card);
     });
+
+    let activeReviewIndex = safeReviews.length > 1 ? 1 : 0;
+    let reviewScrollFrame = null;
+    const setActiveReviewCard = (nextIndex, { scroll = false, focus = false } = {}) => {
+        const boundedIndex = Math.min(reviewCards.length - 1, Math.max(0, nextIndex));
+        activeReviewIndex = boundedIndex;
+        reviewCards.forEach((card, index) => {
+            const isActive = index === activeReviewIndex;
+            card.classList.toggle("is-active", isActive);
+            card.setAttribute("aria-current", isActive ? "true" : "false");
+        });
+
+        const activeCard = reviewCards[activeReviewIndex];
+        if (scroll) {
+            activeCard.scrollIntoView({
+                behavior: reducedMotion.matches ? "auto" : "smooth",
+                block: "nearest",
+                inline: "center"
+            });
+        }
+        if (focus) activeCard.focus({ preventScroll: true });
+    };
+
+    reviewCards.forEach((card, index) => {
+        card.addEventListener("click", () => setActiveReviewCard(index, { scroll: true }));
+        card.addEventListener("focus", () => setActiveReviewCard(index, { scroll: true }));
+        card.addEventListener("keydown", (event) => {
+            if (!["ArrowLeft", "ArrowRight"].includes(event.key)) return;
+            event.preventDefault();
+            const direction = event.key === "ArrowRight" ? 1 : -1;
+            setActiveReviewCard(activeReviewIndex + direction, { scroll: true, focus: true });
+        });
+    });
+
+    reviewList.onscroll = () => {
+        window.cancelAnimationFrame(reviewScrollFrame);
+        reviewScrollFrame = window.requestAnimationFrame(() => {
+            const listBounds = reviewList.getBoundingClientRect();
+            const listCenter = listBounds.left + listBounds.width / 2;
+            const closestIndex = reviewCards.reduce((bestIndex, card, index) => {
+                const bounds = card.getBoundingClientRect();
+                const distance = Math.abs(bounds.left + bounds.width / 2 - listCenter);
+                const bestBounds = reviewCards[bestIndex].getBoundingClientRect();
+                const bestDistance = Math.abs(bestBounds.left + bestBounds.width / 2 - listCenter);
+                return distance < bestDistance ? index : bestIndex;
+            }, 0);
+            setActiveReviewCard(closestIndex);
+        });
+    };
+
+    window.requestAnimationFrame(() => setActiveReviewCard(activeReviewIndex, { scroll: true }));
 };
 
 const requestPublishedReviews = () => {
