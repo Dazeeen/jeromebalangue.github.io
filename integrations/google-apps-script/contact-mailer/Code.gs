@@ -5,6 +5,7 @@ const CONTACT_CONFIG = Object.freeze({
   senderName: "Jerome Balangue Portfolio",
   siteUrl: "https://jeromebalangue.github.io/",
   webAppUrl: "https://script.google.com/macros/s/AKfycbxwS5NBw7Lqgjas7Kh7P2QtIq_b2PMLZejBw3RN6jmFLuJ493m_xT1vEsq8akp2TU0F-A/exec",
+  moderationGatewayUrl: "https://jeromebalangue.github.io/review-moderation.html",
   curtainImageUrl: "https://jeromebalangue.github.io/static/media/images/site/portfolio-background.png",
   profileImageUrl: "https://jeromebalangue.github.io/static/media/images/home/jerome-hero-portrait.jpg",
   rateLimitSeconds: 60,
@@ -724,8 +725,8 @@ function getPublishedReviews_() {
 }
 
 function sendReviewModerationEmail_(review, moderationToken, submittedAtDate) {
-  const approveUrl = createReviewModerationUrl_(CONTACT_CONFIG.webAppUrl, "approve", review.id, moderationToken);
-  const rejectUrl = createReviewModerationUrl_(CONTACT_CONFIG.webAppUrl, "reject", review.id, moderationToken);
+  const approveUrl = createReviewModerationUrl_(CONTACT_CONFIG.moderationGatewayUrl, "approve", review.id, moderationToken);
+  const rejectUrl = createReviewModerationUrl_(CONTACT_CONFIG.moderationGatewayUrl, "reject", review.id, moderationToken);
   const submittedAt = Utilities.formatDate(
     submittedAtDate,
     "Asia/Manila",
@@ -783,7 +784,7 @@ function resendPendingReviewModerationEmails() {
 
 function createReviewModerationUrl_(serviceUrl, action, reviewId, token) {
   return serviceUrl
-    + "?reviewAction=" + encodeURIComponent(action)
+    + "#reviewAction=" + encodeURIComponent(action)
     + "&reviewId=" + encodeURIComponent(reviewId)
     + "&reviewToken=" + encodeURIComponent(token);
 }
