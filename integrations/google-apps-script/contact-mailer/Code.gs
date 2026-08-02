@@ -5,7 +5,9 @@ const CONTACT_CONFIG = Object.freeze({
   senderName: "Jerome Balangue Portfolio",
   siteUrl: "https://jeromebalangue.github.io/",
   webAppUrl: "https://script.google.com/macros/s/AKfycbxwS5NBw7Lqgjas7Kh7P2QtIq_b2PMLZejBw3RN6jmFLuJ493m_xT1vEsq8akp2TU0F-A/exec",
-  moderationGatewayUrl: "https://jeromebalangue.github.io/review-moderation.html?v=2",
+  moderationGatewayUrl: "https://jeromebalangue.github.io/review-moderation.html?v=3",
+  moderationEnabled: false,
+  moderationTokenLifetimeSeconds: 24 * 60 * 60,
   curtainImageUrl: "https://jeromebalangue.github.io/static/media/images/site/portfolio-background.png",
   profileImageUrl: "https://jeromebalangue.github.io/static/media/images/home/jerome-hero-portrait.jpg",
   rateLimitSeconds: 60,
@@ -46,7 +48,8 @@ const REVIEW_SHEET_HEADERS = Object.freeze([
   "Review",
   "Status",
   "Approved At",
-  "Token Hash"
+  "Token Hash",
+  "Token Expires At"
 ]);
 
 const CONTACT_DOCUMENT_TYPES = Object.freeze({
@@ -98,6 +101,13 @@ function doGet(event) {
     });
   }
   if (request.reviewAction) {
+    if (!CONTACT_CONFIG.moderationEnabled) {
+      return createReviewModerationPage_(
+        false,
+        "Owner approval required",
+        "Review moderation is available only through Jerome's private approval deployment."
+      );
+    }
     return handleReviewModeration_(request);
   }
 
@@ -307,6 +317,7 @@ function handleReviewSubmission_(request) {
       approvedAt: ""
     };
     review.tokenHash = hashReviewModerationToken_(review.id, moderationToken);
+    review.tokenExpiresAt = createReviewModerationExpiry_();
 
     storePendingReview_(review);
     try {
@@ -350,6 +361,10 @@ function enforceReviewRateLimit_(email) {
 
 function createReviewModerationToken_() {
   return (Utilities.getUuid() + Utilities.getUuid()).replace(/-/g, "");
+}
+
+function createReviewModerationExpiry_() {
+  return new Date(Date.now() + CONTACT_CONFIG.moderationTokenLifetimeSeconds * 1000).toISOString();
 }
 
 function sha256Hex_(value) {
@@ -476,6 +491,15 @@ function initializeReviewSheet_(spreadsheet) {
     sheet.setFrozenRows(1);
   } else {
     const headers = sheet.getRange(1, 1, 1, REVIEW_SHEET_HEADERS.length).getValues()[0];
+    const legacyHeaders = REVIEW_SHEET_HEADERS.slice(0, -1);
+    const validLegacyHeaders = legacyHeaders.every(function (header, index) {
+      return String(headers[index] || "") === header;
+    });
+    if (validLegacyHeaders && !String(headers[REVIEW_SHEET_HEADERS.length - 1] || "")) {
+      sheet.getRange(1, REVIEW_SHEET_HEADERS.length, 1, 1)
+        .setValues([[REVIEW_SHEET_HEADERS[REVIEW_SHEET_HEADERS.length - 1]]]);
+      headers[REVIEW_SHEET_HEADERS.length - 1] = REVIEW_SHEET_HEADERS[REVIEW_SHEET_HEADERS.length - 1];
+    }
     const validHeaders = REVIEW_SHEET_HEADERS.every(function (header, index) {
       return String(headers[index] || "") === header;
     });
@@ -614,7 +638,8 @@ function reviewToSheetRow_(review) {
     toSheetText_(review.feedback),
     review.status,
     review.approvedAt || "",
-    review.tokenHash || ""
+    review.tokenHash || "",
+    review.tokenExpiresAt || ""
   ];
 }
 
@@ -630,7 +655,8 @@ function sheetRowToReview_(row) {
     feedback: fromSheetText_(row[7]),
     status: String(row[8] || ""),
     approvedAt: normalizeSheetDate_(row[9]),
-    tokenHash: String(row[10] || "")
+    tokenHash: String(row[10] || ""),
+    tokenExpiresAt: normalizeSheetDate_(row[11])
   };
 }
 
@@ -732,14 +758,20 @@ function sendReviewModerationEmail_(review, moderationToken, submittedAtDate) {
     "Asia/Manila",
     "MMMM d, yyyy 'at' h:mm a"
   );
+  const expiresAtDate = new Date(review.tokenExpiresAt);
+  const expiresAt = Utilities.formatDate(
+    Number.isNaN(expiresAtDate.getTime()) ? new Date() : expiresAtDate,
+    "Asia/Manila",
+    "MMMM d, yyyy 'at' h:mm a"
+  );
 
   MailApp.sendEmail({
     to: CONTACT_CONFIG.destinationEmail,
     subject: review.rating + "-star website review from " + review.name + " - approval needed",
     name: CONTACT_CONFIG.senderName,
     replyTo: review.email,
-    body: createReviewModerationPlainTextEmail_(review, submittedAt, approveUrl, rejectUrl),
-    htmlBody: createReviewModerationHtmlEmail_(review, submittedAt, approveUrl, rejectUrl)
+    body: createReviewModerationPlainTextEmail_(review, submittedAt, expiresAt, approveUrl, rejectUrl),
+    htmlBody: createReviewModerationHtmlEmail_(review, submittedAt, expiresAt, approveUrl, rejectUrl)
   });
 }
 
@@ -761,8 +793,13 @@ function resendPendingReviewModerationEmails() {
     pendingReviews.forEach(function (entry) {
       const moderationToken = createReviewModerationToken_();
       const previousTokenHash = entry.review.tokenHash;
+      const previousTokenExpiresAt = entry.review.tokenExpiresAt;
       const nextTokenHash = hashReviewModerationToken_(entry.review.id, moderationToken);
-      storage.reviewSheet.getRange(entry.rowNumber, 11, 1, 1).setValues([[nextTokenHash]]);
+      const nextTokenExpiresAt = createReviewModerationExpiry_();
+      entry.review.tokenHash = nextTokenHash;
+      entry.review.tokenExpiresAt = nextTokenExpiresAt;
+      storage.reviewSheet.getRange(entry.rowNumber, 11, 1, 2)
+        .setValues([[nextTokenHash, nextTokenExpiresAt]]);
       try {
         const submittedAtDate = new Date(entry.review.createdAt);
         sendReviewModerationEmail_(
@@ -771,7 +808,8 @@ function resendPendingReviewModerationEmails() {
           Number.isNaN(submittedAtDate.getTime()) ? new Date() : submittedAtDate
         );
       } catch (error) {
-        storage.reviewSheet.getRange(entry.rowNumber, 11, 1, 1).setValues([[previousTokenHash]]);
+        storage.reviewSheet.getRange(entry.rowNumber, 11, 1, 2)
+          .setValues([[previousTokenHash, previousTokenExpiresAt]]);
         throw error;
       }
     });
@@ -789,7 +827,7 @@ function createReviewModerationUrl_(serviceUrl, action, reviewId, token) {
     + "&reviewToken=" + encodeURIComponent(token);
 }
 
-function createReviewModerationPlainTextEmail_(review, submittedAt, approveUrl, rejectUrl) {
+function createReviewModerationPlainTextEmail_(review, submittedAt, expiresAt, approveUrl, rejectUrl) {
   return [
     "NEW WEBSITE REVIEW - APPROVAL REQUIRED",
     "",
@@ -799,6 +837,7 @@ function createReviewModerationPlainTextEmail_(review, submittedAt, approveUrl, 
     "Rating: " + review.rating + "/5",
     "Title: " + review.title,
     "Submitted: " + submittedAt + " (Asia/Manila)",
+    "Approval link expires: " + expiresAt + " (Asia/Manila)",
     "",
     review.feedback,
     "",
@@ -808,17 +847,18 @@ function createReviewModerationPlainTextEmail_(review, submittedAt, approveUrl, 
     "DECLINE AND DELETE:",
     rejectUrl,
     "",
-    "Each moderation link can be used only once."
+    "Google will require Jerome's deploying account. Each link can be used once and expires after 24 hours."
   ].join("\n");
 }
 
-function createReviewModerationHtmlEmail_(review, submittedAt, approveUrl, rejectUrl) {
+function createReviewModerationHtmlEmail_(review, submittedAt, expiresAt, approveUrl, rejectUrl) {
   const safeName = escapeHtml_(review.name);
   const safeEmail = escapeHtml_(review.email);
   const safeCompany = escapeHtml_(review.company || "Independent client");
   const safeTitle = escapeHtml_(review.title);
   const safeFeedback = escapeHtml_(review.feedback).replace(/\r?\n/g, "<br>");
   const safeSubmittedAt = escapeHtml_(submittedAt);
+  const safeExpiresAt = escapeHtml_(expiresAt);
   const safeApproveUrl = escapeHtml_(approveUrl);
   const safeRejectUrl = escapeHtml_(rejectUrl);
   const stars = new Array(review.rating + 1).join("&#9733; ");
@@ -852,13 +892,14 @@ function createReviewModerationHtmlEmail_(review, submittedAt, approveUrl, rejec
             <div style="margin-top:10px;font-size:14px;line-height:1.75;color:#42536e;">${safeFeedback}</div>
           </div>
           <div style="margin-top:14px;font-size:11px;color:#73839b;">Submitted ${safeSubmittedAt} (Asia/Manila)</div>
+          <div style="margin-top:5px;font-size:11px;font-weight:700;color:#b32645;">Secure owner approval expires ${safeExpiresAt} (Asia/Manila)</div>
           <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin-top:26px;">
             <tr>
               <td width="50%" style="padding-right:6px;"><a href="${safeApproveUrl}" style="display:block;padding:15px 12px;border-radius:999px;background:#155fd7;color:#fff;font-size:11px;font-weight:800;letter-spacing:.7px;text-align:center;text-decoration:none;text-transform:uppercase;">Accept &amp; Post</a></td>
               <td width="50%" style="padding-left:6px;"><a href="${safeRejectUrl}" style="display:block;padding:14px 12px;border:1px solid #d95870;border-radius:999px;background:#fff;color:#b32645;font-size:11px;font-weight:800;letter-spacing:.7px;text-align:center;text-decoration:none;text-transform:uppercase;">Decline &amp; Delete</a></td>
             </tr>
           </table>
-          <p style="margin:18px 0 0;text-align:center;font-size:10px;line-height:1.6;color:#8290a4;">Each secure moderation link expires after one action.</p>
+          <p style="margin:18px 0 0;text-align:center;font-size:10px;line-height:1.6;color:#8290a4;">Google will require Jerome's deploying account. Each secure link expires after one action or 24 hours.</p>
         </td></tr>
       </table>
     </td></tr>
@@ -895,12 +936,23 @@ function handleReviewModeration_(request) {
       return createReviewModerationPage_(false, "Invalid moderation link", "This secure review action could not be verified.");
     }
 
+    const tokenExpiresAt = new Date(review.tokenExpiresAt).getTime();
+    if (!Number.isFinite(tokenExpiresAt) || tokenExpiresAt <= Date.now()) {
+      storage.reviewSheet.getRange(match.rowNumber, 11, 1, 2).setValues([["", ""]]);
+      return createReviewModerationPage_(
+        false,
+        "Moderation link expired",
+        "This secure link has expired. Send a fresh owner approval email before trying again."
+      );
+    }
+
     if (action === "approve") {
       review.status = "approved";
       review.approvedAt = new Date().toISOString();
-      storage.reviewSheet.getRange(match.rowNumber, 9, 1, 3).setValues([[
+      storage.reviewSheet.getRange(match.rowNumber, 9, 1, 4).setValues([[
         review.status,
         review.approvedAt,
+        "",
         ""
       ]]);
       return createReviewModerationPage_(

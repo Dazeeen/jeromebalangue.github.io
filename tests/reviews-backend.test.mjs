@@ -9,7 +9,7 @@ const [backend, moderationGateway] = await Promise.all([
     readFile(new URL("../review-moderation.html", import.meta.url), "utf8")
 ]);
 
-function createReviewBackend() {
+function createReviewBackend({ moderationEnabled = true } = {}) {
     const properties = new Map();
     const cache = new Map();
     const emails = [];
@@ -238,7 +238,10 @@ function createReviewBackend() {
         }
     };
 
-    vm.runInNewContext(`${backend}
+    const runtimeBackend = moderationEnabled
+        ? backend.replace("moderationEnabled: false", "moderationEnabled: true")
+        : backend;
+    vm.runInNewContext(`${runtimeBackend}
 globalThis.reviewApi = {
   submit: handleReviewSubmission_,
   moderate: handleReviewModeration_,
@@ -305,12 +308,13 @@ test("review submission creates the Drive hierarchy, stores a private Sheet row,
     const sheet = getReviewSheet();
     assert.deepEqual(sheet.rows[0], [
         "Review ID", "Submitted At", "Name", "Email", "Company", "Title",
-        "Rating", "Review", "Status", "Approved At", "Token Hash"
+        "Rating", "Review", "Status", "Approved At", "Token Hash", "Token Expires At"
     ]);
     assert.equal(sheet.rows[1][2], "Avery & Co.");
     assert.equal(sheet.rows[1][3], "hello@example.com");
     assert.equal(sheet.rows[1][8], "pending");
     assert.ok(sheet.rows[1][10]);
+    assert.ok(Date.parse(sheet.rows[1][11]) > Date.now());
     assert.deepEqual(JSON.parse(JSON.stringify(api.list())), []);
 });
 
@@ -340,7 +344,17 @@ test("Accept and Post updates the private Sheet row and publishes only public fi
     assert.doesNotMatch(publicResponse, /hello@example\.com/u);
 });
 
-test("moderation emails use the portfolio gateway without exposing tokens to GitHub requests", () => {
+test("the anonymous public deployment cannot execute a moderation token", () => {
+    const { api, emails, getReviewSheet } = createReviewBackend({ moderationEnabled: false });
+    api.submit({ ...validReview });
+    const approveUrl = moderationLink(emails[0].body, "ACCEPT AND POST");
+    const response = api.get({ parameter: moderationRequest(approveUrl) });
+
+    assert.match(response.getContent(), /Owner approval required/u);
+    assert.equal(getReviewSheet().rows[1][8], "pending");
+});
+
+test("moderation emails use the owner-confirmation gateway without exposing tokens to GitHub requests", () => {
     const { api, emails } = createReviewBackend();
     api.submit({ ...validReview });
     const approveUrl = moderationLink(emails[0].body, "ACCEPT AND POST");
@@ -351,26 +365,28 @@ test("moderation emails use the portfolio gateway without exposing tokens to Git
         "https://jeromebalangue.github.io/review-moderation.html"
     );
     assert.equal(rejectUrl.origin + rejectUrl.pathname, approveUrl.origin + approveUrl.pathname);
-    assert.equal(approveUrl.search, "?v=2");
+    assert.equal(approveUrl.search, "?v=3");
     assert.equal(moderationRequest(approveUrl).reviewAction, "approve");
     assert.equal(moderationRequest(rejectUrl).reviewAction, "reject");
     assert.doesNotMatch(emails[0].body, /\/macros\/u\/\d+\/s\//u);
 });
 
-test("the moderation gateway processes actions in place without Google account credentials", () => {
+test("the moderation gateway requires confirmation before opening the owner-only deployment", () => {
     assert.match(moderationGateway, /window\.location\.hash\.slice\(1\)/u);
     assert.match(moderationGateway, /\^\[a-f0-9\]\{32\}\$/u);
     assert.match(moderationGateway, /\^\[a-f0-9\]\{64\}\$/u);
+    assert.match(moderationGateway, /data-confirm/u);
+    assert.match(moderationGateway, /Continue as Jerome/u);
+    assert.match(moderationGateway, /balanguejerome@gmail\.com/u);
     assert.match(
         moderationGateway,
-        /https:\/\/script\.google\.com\/macros\/s\/AKfycbxwS5NBw7Lqgjas7Kh7P2QtIq_b2PMLZejBw3RN6jmFLuJ493m_xT1vEsq8akp2TU0F-A\/exec/u
+        /https:\/\/script\.google\.com\/a\/gmail\.com\/macros\/s\/AKfycbyc81epxNpehBmO-qObFjn76f3UxAPtw1w3_FOHyP6Z67LlSlL0w95nL3pJSbI360-4Vw\/exec/u
     );
-    assert.match(moderationGateway, /fetch\(destination\.toString\(\)/u);
-    assert.match(moderationGateway, /mode: "no-cors"/u);
-    assert.match(moderationGateway, /credentials: "omit"/u);
+    assert.match(moderationGateway, /https:\/\/accounts\.google\.com\/AccountChooser/u);
+    assert.match(moderationGateway, /accountChooser\.searchParams\.set\("continue", destination\.toString\(\)\)/u);
+    assert.match(moderationGateway, /window\.location\.assign\(accountChooser\.toString\(\)\)/u);
     assert.match(moderationGateway, /window\.history\.replaceState/u);
-    assert.doesNotMatch(moderationGateway, /window\.location\.replace/u);
-    assert.doesNotMatch(moderationGateway, /\/macros\/u\/\d+\/s\//u);
+    assert.doesNotMatch(moderationGateway, /fetch\(destination/u);
 });
 
 test("pending reviews can receive a rotated replacement moderation link", () => {
@@ -385,6 +401,22 @@ test("pending reviews can receive a rotated replacement moderation link", () => 
     assert.notEqual(moderationRequest(newApproveUrl).reviewToken, moderationRequest(oldApproveUrl).reviewToken);
     assert.match(api.moderate(moderationRequest(oldApproveUrl)).getContent(), /Invalid moderation link/u);
     assert.match(api.moderate(moderationRequest(newApproveUrl)).getContent(), /Review accepted and posted/u);
+});
+
+test("expired moderation tokens are cleared without publishing the review", () => {
+    const { api, emails, getReviewSheet } = createReviewBackend();
+    api.submit({ ...validReview });
+    const approveUrl = moderationLink(emails[0].body, "ACCEPT AND POST");
+    const sheetRow = getReviewSheet().rows[1];
+    sheetRow[11] = "2020-01-01T00:00:00.000Z";
+
+    const response = api.moderate(moderationRequest(approveUrl));
+
+    assert.match(response.getContent(), /Moderation link expired/u);
+    assert.equal(sheetRow[8], "pending");
+    assert.equal(sheetRow[10], "");
+    assert.equal(sheetRow[11], "");
+    assert.deepEqual(JSON.parse(JSON.stringify(api.list())), []);
 });
 
 test("Decline and Delete permanently removes the pending Sheet row", () => {
@@ -507,7 +539,10 @@ test("the review backend uses locked Drive folders and Sheets with private publi
     assert.match(backend, /reviewsFolderName: "Reviews"/u);
     assert.match(backend, /reviewsSpreadsheetName: "Portfolio Reviews"/u);
     assert.match(backend, /webAppUrl: "https:\/\/script\.google\.com\/macros\/s\/AKfycbxwS5NBw7Lqgjas7Kh7P2QtIq_b2PMLZejBw3RN6jmFLuJ493m_xT1vEsq8akp2TU0F-A\/exec"/u);
-    assert.match(backend, /moderationGatewayUrl: "https:\/\/jeromebalangue\.github\.io\/review-moderation\.html\?v=2"/u);
+    assert.match(backend, /moderationGatewayUrl: "https:\/\/jeromebalangue\.github\.io\/review-moderation\.html\?v=3"/u);
+    assert.match(backend, /moderationEnabled: false/u);
+    assert.match(backend, /moderationTokenLifetimeSeconds: 24 \* 60 \* 60/u);
+    assert.match(backend, /if \(!CONTACT_CONFIG\.moderationEnabled\)/u);
     assert.match(backend, /DriveApp\.getRootFolder\(\)/u);
     assert.match(backend, /SpreadsheetApp\.create\(CONTACT_CONFIG\.reviewsSpreadsheetName\)/u);
     assert.match(backend, /LockService\.getScriptLock\(\)/u);

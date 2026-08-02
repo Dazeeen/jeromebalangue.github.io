@@ -18,10 +18,19 @@ exposing a private API key in the public GitHub Pages source.
    ```
 
 Do not place Google passwords, OAuth tokens, or private API keys in this repository.
-The `/exec` URL is the only value the portfolio front end needs. After changing the
-Apps Script code, open **Deploy > Manage deployments**, edit the existing web-app
-deployment, select **New version**, and deploy it. Updating the existing deployment
-keeps the current `/exec` URL while publishing the new email template.
+The public deployment accepts anonymous contact/review submissions but has
+`moderationEnabled: false`, so even a valid moderation token cannot be executed
+through its URL. Jerome-only moderation uses this separate deployment:
+
+```text
+https://script.google.com/macros/s/AKfycbyc81epxNpehBmO-qObFjn76f3UxAPtw1w3_FOHyP6Z67LlSlL0w95nL3pJSbI360-4Vw/exec
+```
+
+That deployment is a versioned snapshot with **Who has access: Only myself** and
+belongs to `balanguejerome@gmail.com`. Its snapshot has `moderationEnabled: true`.
+Keep the repository manifest in public mode (`ANYONE_ANONYMOUS`) and the committed
+code guard set to `false`; updating the private deployment requires intentionally
+creating a private `MYSELF` version, never pointing it at an ordinary public build.
 
 The backend sends a custom portfolio email with the website's public blue-curtain
 background, provides a plain-text fallback, sets Reply-To to the visitor, validates
@@ -72,19 +81,19 @@ Sheet becomes the canonical review store.
 
 Each valid submission sends Jerome a branded preview email with one-time **Accept &
 Post** and **Decline & Delete** links. Each link contains a high-entropy token; only
-its SHA-256 hash is stored. Email buttons first open the portfolio-hosted
-`review-moderation.html` gateway, with credentials kept in the URL fragment so they
-are not sent to GitHub. The gateway validates them and calls the fixed anonymous
-production `/macros/s/.../exec` URL with browser credentials omitted, then reports
-the result in place without navigating to Google's domain. This avoids the
-account-specific `/macros/u/<account>/s/` redirect caused by unsupported Google
-multi-login sessions. Approval marks the private Sheet row as approved
-and clears the token hash before exposing only the display fields publicly.
-Rejection deletes the pending Sheet row. Reviewer email remains private in the Sheet
-and is never returned to the website.
+its SHA-256 hash and 24-hour expiry are stored. Email buttons first open the
+portfolio-hosted `review-moderation.html` confirmation gateway, with credentials
+kept in the URL fragment so they are not sent to GitHub. Nothing changes until
+Jerome confirms the action. The gateway then opens Google's account chooser for
+`balanguejerome@gmail.com` and continues to the separate `MYSELF` deployment.
+Google blocks every other account before the script runs, and the public deployment
+also refuses moderation as defense in depth. Approval clears the token and expiry
+before exposing only public fields. Rejection deletes the pending Sheet row.
+Expired links clear their stored credentials and require a fresh moderation email.
+Reviewer email remains private in the Sheet and is never returned to the website.
 
-If a deployment URL ever changes, update `CONTACT_CONFIG.webAppUrl` and the matching
-constant in `review-moderation.html`, redeploy both surfaces, then
+If a deployment URL ever changes, update `CONTACT_CONFIG.webAppUrl` and the owner
+deployment constant in `review-moderation.html`, redeploy both surfaces, then
 run `resendPendingReviewModerationEmails()` once from the Apps Script editor. It
 rotates the stored hashes and sends fresh working links for pending rows only.
 
