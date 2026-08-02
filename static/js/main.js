@@ -7,6 +7,7 @@ const scrim = document.querySelector(".toc-scrim");
 const navLabel = navToggle.querySelector(".sr-only");
 const pageViews = [...document.querySelectorAll(".page-view")];
 const pageLinks = [...sidebar.querySelectorAll('a[href^="#"]')];
+const pageJumpLinks = [...document.querySelectorAll("[data-page-jump]")];
 const mobileSidebar = window.matchMedia("(max-width: 720px)");
 const portfolioCharacters = [...document.querySelectorAll(".portfolio-title__character")];
 const portfolioCursor = document.querySelector(".portfolio-title__cursor");
@@ -92,6 +93,7 @@ const reviewFormSubmitLabel = document.querySelector("[data-review-submit-label]
 const reviewsDataFrame = document.querySelector("[data-reviews-data-frame]");
 const reviewList = document.querySelector("[data-review-list]");
 const reviewCount = document.querySelector("[data-review-count]");
+const homeReviewTrack = document.querySelector("[data-home-review-track]");
 const siteToastStack = document.querySelector("[data-site-toast-stack]");
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 const CONTACT_SITE_ORIGIN = "https://jeromebalangue.github.io";
@@ -2052,6 +2054,13 @@ pageLinks.forEach((link) => {
     });
 });
 
+pageJumpLinks.forEach((link) => {
+    link.addEventListener("click", (event) => {
+        event.preventDefault();
+        navigateToPage(link.dataset.pageJump || link.getAttribute("href").slice(1));
+    });
+});
+
 const siteToastTimers = new WeakMap();
 
 const clearSiteToastTimer = (toast) => {
@@ -2175,9 +2184,100 @@ const formatReviewDate = (value) => {
     }).format(date);
 };
 
-const renderPublishedReviews = (reviews) => {
-    if (!reviewList || !reviewCount) return;
+const createHomeTestimonialCard = (review, hiddenDuplicate = false) => {
+    const name = String(review?.name || "Portfolio client").trim() || "Portfolio client";
+    const company = String(review?.company || "Independent client").trim() || "Independent client";
+    const title = String(review?.title || "A creative collaboration").trim();
+    const feedback = String(review?.feedback || "").trim();
+    const rating = Math.min(5, Math.max(1, Number.parseInt(review?.rating, 10) || 1));
+
+    const card = document.createElement("article");
+    card.className = "home-testimonial-card";
+    if (hiddenDuplicate) {
+        card.setAttribute("aria-hidden", "true");
+    } else {
+        card.tabIndex = 0;
+    }
+
+    const orbit = document.createElement("span");
+    orbit.className = "home-testimonial-card__orbit";
+    orbit.setAttribute("aria-hidden", "true");
+
+    const stars = document.createElement("p");
+    stars.className = "home-testimonial-card__stars";
+    stars.setAttribute("aria-label", `${rating} out of 5 stars`);
+    stars.textContent = "★".repeat(rating) + "☆".repeat(5 - rating);
+
+    const personName = document.createElement("p");
+    personName.className = "home-testimonial-card__name";
+    personName.textContent = name;
+
+    const meta = document.createElement("p");
+    meta.className = "home-testimonial-card__meta";
+    meta.textContent = `${company} · ${formatReviewDate(review?.approvedAt)}`;
+
+    const heading = document.createElement("h3");
+    heading.className = "home-testimonial-card__title";
+    heading.textContent = title;
+
+    const reviewCopy = document.createElement("p");
+    reviewCopy.className = "home-testimonial-card__feedback";
+    reviewCopy.textContent = feedback;
+
+    card.append(orbit, stars, personName, meta, heading, reviewCopy);
+    return card;
+};
+
+const setHomeTestimonialsStatus = (message, state = "") => {
+    if (!homeReviewTrack) return;
+    const status = document.createElement("p");
+    status.className = "home-testimonials__status";
+    status.textContent = message;
+    if (state) status.dataset.state = state;
+    homeReviewTrack.classList.remove("is-ready");
+    homeReviewTrack.style.removeProperty("--home-review-duration");
+    homeReviewTrack.replaceChildren(status);
+    homeReviewTrack.setAttribute("aria-busy", "false");
+};
+
+const renderHomeTestimonials = (reviews) => {
+    if (!homeReviewTrack) return;
     const safeReviews = Array.isArray(reviews) ? reviews : [];
+    if (safeReviews.length === 0) {
+        setHomeTestimonialsStatus("Published client stories will appear here after Jerome approves them.");
+        return;
+    }
+
+    const displayReviews = Array.from(
+        { length: Math.max(4, safeReviews.length) },
+        (_, index) => safeReviews[index % safeReviews.length]
+    );
+    const createGroup = (hiddenGroup = false) => {
+        const group = document.createElement("div");
+        group.className = "home-testimonials__group";
+        if (hiddenGroup) group.setAttribute("aria-hidden", "true");
+        displayReviews.forEach((review, index) => {
+            group.append(createHomeTestimonialCard(
+                review,
+                hiddenGroup || index >= safeReviews.length
+            ));
+        });
+        return group;
+    };
+
+    homeReviewTrack.replaceChildren(createGroup(), createGroup(true));
+    homeReviewTrack.style.setProperty(
+        "--home-review-duration",
+        `${Math.max(48, displayReviews.length * 13)}s`
+    );
+    homeReviewTrack.classList.add("is-ready");
+    homeReviewTrack.setAttribute("aria-busy", "false");
+};
+
+const renderPublishedReviews = (reviews) => {
+    const safeReviews = Array.isArray(reviews) ? reviews : [];
+    renderHomeTestimonials(safeReviews);
+    if (!reviewList || !reviewCount) return;
     reviewList.replaceChildren();
     reviewList.onscroll = null;
     reviewList.setAttribute("aria-busy", "false");
@@ -2289,6 +2389,7 @@ const requestPublishedReviews = () => {
         reviewList.replaceChildren(createReviewStatusCard(
             "Published reviews load on the live Jerome portfolio website."
         ));
+        setHomeTestimonialsStatus("Published client stories load on the live Jerome portfolio website.");
         reviewList.setAttribute("aria-busy", "false");
         return;
     }
@@ -2871,6 +2972,7 @@ if (reviewsDataFrame && reviewList && reviewForm) {
             "Published reviews could not be loaded. Please try again later.",
             "error"
         ));
+        setHomeTestimonialsStatus("Client stories could not be loaded. Please try again later.", "error");
         reviewList.setAttribute("aria-busy", "false");
     }, 12000);
 }

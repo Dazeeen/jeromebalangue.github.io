@@ -9,7 +9,7 @@
     <script src="static/js/head.js"></script>
     <link rel="preload" href="static/fonts/manrope-latin.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="preload" href="static/fonts/pinyon-script-latin.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="stylesheet" href="static/css/main.css?v=1.0.50">
+    <link rel="stylesheet" href="static/css/main.css?v=1.0.51">
     <link rel="preload" href="static/media/images/site/portfolio-background.png" as="image">
     <link rel="preload" href="static/media/images/home/jerome-hero-cutout.png" as="image">
     <link rel="preload" href="static/media/images/about/jerome-laptop-cutout.png" as="image">
@@ -92,28 +92,65 @@
     <button class="toc-scrim" type="button" tabindex="-1" aria-hidden="true"></button>
 
     <main class="landing page-view is-active" id="home" data-page="home" aria-labelledby="portfolio-title">
-        <header class="topline" aria-label="Portfolio details">
-            <p>Since 2024</p>
-            <p>Jerome Balangue</p>
-        </header>
+        <section class="landing__hero" aria-label="Portfolio introduction">
+            <header class="topline" aria-label="Portfolio details">
+                <p>Since 2024</p>
+                <p>Jerome Balangue</p>
+            </header>
 
-        <h1 class="portfolio-title" id="portfolio-title" aria-label="Portfolio">
-            <span class="portfolio-title__initial" aria-hidden="true">P</span>
-            <span class="portfolio-title__rest" aria-hidden="true"><i
-                    class="portfolio-title__accent portfolio-title__character">o</i><span
-                    class="portfolio-title__character">r</span><span
-                    class="portfolio-title__character">t</span><i
-                    class="portfolio-title__accent portfolio-title__character">f</i><span
-                    class="portfolio-title__character">o</span><span
-                    class="portfolio-title__character">l</span><span
-                    class="portfolio-title__character">i</span><span
-                    class="portfolio-title__character">o</span><span class="portfolio-title__cursor">|</span></span>
-        </h1>
+            <h1 class="portfolio-title" id="portfolio-title" aria-label="Portfolio">
+                <span class="portfolio-title__initial" aria-hidden="true">P</span>
+                <span class="portfolio-title__rest" aria-hidden="true"><i
+                        class="portfolio-title__accent portfolio-title__character">o</i><span
+                        class="portfolio-title__character">r</span><span
+                        class="portfolio-title__character">t</span><i
+                        class="portfolio-title__accent portfolio-title__character">f</i><span
+                        class="portfolio-title__character">o</span><span
+                        class="portfolio-title__character">l</span><span
+                        class="portfolio-title__character">i</span><span
+                        class="portfolio-title__character">o</span><span class="portfolio-title__cursor">|</span></span>
+            </h1>
 
-        <img class="portrait" src="static/media/images/home/jerome-hero-cutout.png"
-            alt="Jerome Balangue wearing a black suit with his arms crossed" width="727" height="1236">
+            <img class="portrait" src="static/media/images/home/jerome-hero-cutout.png"
+                alt="Jerome Balangue wearing a black suit with his arms crossed" width="727" height="1236">
 
-        <p class="role">Graphic Artist / Video Editor</p>
+            <p class="role">Graphic Artist / Video Editor</p>
+        </section>
+
+        <section class="home-testimonials" aria-labelledby="home-testimonials-title">
+            <header class="home-testimonials__header">
+                <div>
+                    <p class="home-testimonials__script">Testimonials</p>
+                    <p class="home-testimonials__eyebrow">Client stories</p>
+                    <h2 id="home-testimonials-title">Creative work, told by the people behind the projects.</h2>
+                </div>
+                <a class="home-testimonials__all" href="#reviews" data-page-jump="reviews">
+                    View all reviews
+                    <span aria-hidden="true">&#8599;</span>
+                </a>
+            </header>
+
+            <div class="home-testimonials__viewport" aria-label="Published client reviews">
+                <div class="home-testimonials__track" data-home-review-track aria-live="polite"
+                    aria-busy="true">
+                    <p class="home-testimonials__status">Loading client stories&hellip;</p>
+                </div>
+            </div>
+
+            <aside class="home-testimonials__cta" aria-labelledby="home-testimonials-cta-title">
+                <div>
+                    <p>Let&rsquo;s collaborate</p>
+                    <h3 id="home-testimonials-cta-title">Need creative support for your next project?</h3>
+                    <span>Tell Jerome about your design, editing, or content goals.</span>
+                </div>
+                <a href="#contact-collaboration" data-page-jump="contact-collaboration">
+                    Contact Jerome
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M5 12h13M13 6l6 6-6 6"></path>
+                    </svg>
+                </a>
+            </aside>
+        </section>
     </main>
 
     <section class="about-section page-view" id="about-me" data-page="about-me" aria-labelledby="about-title">
@@ -952,7 +989,7 @@
     <script src="static/media/images/social-media-designs/gallery-data.js?v=1.0.16"></script>
     <script src="static/media/images/AI_generated_design/gallery-data.js?v=1.0.21"></script>
     <script src="static/media/videos/gallery-data.js?v=1.0.1"></script>
-    <script src="static/js/main.js?v=1.0.43"></script>
+    <script src="static/js/main.js?v=1.0.44"></script>
 </body>
 
 </html>
