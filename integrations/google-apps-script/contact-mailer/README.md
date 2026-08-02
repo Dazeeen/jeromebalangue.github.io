@@ -74,10 +74,11 @@ Each valid submission sends Jerome a branded preview email with one-time **Accep
 Post** and **Decline & Delete** links. Each link contains a high-entropy token; only
 its SHA-256 hash is stored. Email buttons first open the portfolio-hosted
 `review-moderation.html` gateway, with credentials kept in the URL fragment so they
-are not sent to GitHub. The gateway validates them and redirects to the fixed
-anonymous production `/macros/s/.../exec` URL. This avoids the account-specific
-`/macros/u/<account>/s/` path that Gmail can otherwise open and that does not resolve
-for anonymous web-app deployments. Approval marks the private Sheet row as approved
+are not sent to GitHub. The gateway validates them and calls the fixed anonymous
+production `/macros/s/.../exec` URL with browser credentials omitted, then reports
+the result in place without navigating to Google's domain. This avoids the
+account-specific `/macros/u/<account>/s/` redirect caused by unsupported Google
+multi-login sessions. Approval marks the private Sheet row as approved
 and clears the token hash before exposing only the display fields publicly.
 Rejection deletes the pending Sheet row. Reviewer email remains private in the Sheet
 and is never returned to the website.

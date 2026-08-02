@@ -5,7 +5,7 @@ const CONTACT_CONFIG = Object.freeze({
   senderName: "Jerome Balangue Portfolio",
   siteUrl: "https://jeromebalangue.github.io/",
   webAppUrl: "https://script.google.com/macros/s/AKfycbxwS5NBw7Lqgjas7Kh7P2QtIq_b2PMLZejBw3RN6jmFLuJ493m_xT1vEsq8akp2TU0F-A/exec",
-  moderationGatewayUrl: "https://jeromebalangue.github.io/review-moderation.html",
+  moderationGatewayUrl: "https://jeromebalangue.github.io/review-moderation.html?v=2",
   curtainImageUrl: "https://jeromebalangue.github.io/static/media/images/site/portfolio-background.png",
   profileImageUrl: "https://jeromebalangue.github.io/static/media/images/home/jerome-hero-portrait.jpg",
   rateLimitSeconds: 60,

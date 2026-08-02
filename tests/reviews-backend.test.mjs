@@ -351,13 +351,13 @@ test("moderation emails use the portfolio gateway without exposing tokens to Git
         "https://jeromebalangue.github.io/review-moderation.html"
     );
     assert.equal(rejectUrl.origin + rejectUrl.pathname, approveUrl.origin + approveUrl.pathname);
-    assert.equal(approveUrl.search, "");
+    assert.equal(approveUrl.search, "?v=2");
     assert.equal(moderationRequest(approveUrl).reviewAction, "approve");
     assert.equal(moderationRequest(rejectUrl).reviewAction, "reject");
     assert.doesNotMatch(emails[0].body, /\/macros\/u\/\d+\/s\//u);
 });
 
-test("the moderation gateway validates fragment credentials and redirects to the anonymous production path", () => {
+test("the moderation gateway processes actions in place without Google account credentials", () => {
     assert.match(moderationGateway, /window\.location\.hash\.slice\(1\)/u);
     assert.match(moderationGateway, /\^\[a-f0-9\]\{32\}\$/u);
     assert.match(moderationGateway, /\^\[a-f0-9\]\{64\}\$/u);
@@ -365,7 +365,11 @@ test("the moderation gateway validates fragment credentials and redirects to the
         moderationGateway,
         /https:\/\/script\.google\.com\/macros\/s\/AKfycbxwS5NBw7Lqgjas7Kh7P2QtIq_b2PMLZejBw3RN6jmFLuJ493m_xT1vEsq8akp2TU0F-A\/exec/u
     );
-    assert.match(moderationGateway, /window\.location\.replace\(destination\.toString\(\)\)/u);
+    assert.match(moderationGateway, /fetch\(destination\.toString\(\)/u);
+    assert.match(moderationGateway, /mode: "no-cors"/u);
+    assert.match(moderationGateway, /credentials: "omit"/u);
+    assert.match(moderationGateway, /window\.history\.replaceState/u);
+    assert.doesNotMatch(moderationGateway, /window\.location\.replace/u);
     assert.doesNotMatch(moderationGateway, /\/macros\/u\/\d+\/s\//u);
 });
 
@@ -503,7 +507,7 @@ test("the review backend uses locked Drive folders and Sheets with private publi
     assert.match(backend, /reviewsFolderName: "Reviews"/u);
     assert.match(backend, /reviewsSpreadsheetName: "Portfolio Reviews"/u);
     assert.match(backend, /webAppUrl: "https:\/\/script\.google\.com\/macros\/s\/AKfycbxwS5NBw7Lqgjas7Kh7P2QtIq_b2PMLZejBw3RN6jmFLuJ493m_xT1vEsq8akp2TU0F-A\/exec"/u);
-    assert.match(backend, /moderationGatewayUrl: "https:\/\/jeromebalangue\.github\.io\/review-moderation\.html"/u);
+    assert.match(backend, /moderationGatewayUrl: "https:\/\/jeromebalangue\.github\.io\/review-moderation\.html\?v=2"/u);
     assert.match(backend, /DriveApp\.getRootFolder\(\)/u);
     assert.match(backend, /SpreadsheetApp\.create\(CONTACT_CONFIG\.reviewsSpreadsheetName\)/u);
     assert.match(backend, /LockService\.getScriptLock\(\)/u);

@@ -88,7 +88,22 @@
       animation: none;
     }
 
-    main[data-state="error"] a {
+    main[data-state="complete"] .spinner {
+      display: grid;
+      place-items: center;
+      border-color: #57d6a3;
+      color: #57d6a3;
+      animation: none;
+    }
+
+    main[data-state="complete"] .spinner::after {
+      content: "\2713";
+      font-size: 26px;
+      font-weight: 800;
+    }
+
+    main[data-state="error"] a,
+    main[data-state="complete"] a {
       display: inline-block;
     }
 
@@ -111,7 +126,7 @@
   </main>
 
   <script>
-    (() => {
+    (async () => {
       "use strict";
 
       const webAppUrl = "https://script.google.com/macros/s/AKfycbxwS5NBw7Lqgjas7Kh7P2QtIq_b2PMLZejBw3RN6jmFLuJ493m_xT1vEsq8akp2TU0F-A/exec";
@@ -135,7 +150,28 @@
       destination.searchParams.set("reviewAction", action);
       destination.searchParams.set("reviewId", reviewId);
       destination.searchParams.set("reviewToken", reviewToken);
-      window.location.replace(destination.toString());
+      heading.textContent = action === "approve" ? "Accepting and posting review..." : "Declining and deleting review...";
+      window.history.replaceState(null, "", window.location.pathname + window.location.search);
+
+      try {
+        await fetch(destination.toString(), {
+          method: "GET",
+          mode: "no-cors",
+          credentials: "omit",
+          cache: "no-store",
+          redirect: "follow",
+          referrerPolicy: "no-referrer"
+        });
+        page.dataset.state = "complete";
+        heading.textContent = action === "approve" ? "Review accepted and posted" : "Review declined and deleted";
+        message.textContent = action === "approve"
+          ? "The review action was sent securely. Open the reviews page to see the published review."
+          : "The review action was sent securely and the pending review was removed.";
+      } catch (error) {
+        page.dataset.state = "error";
+        heading.textContent = "Could not reach the review service";
+        message.textContent = "Please retry from the newest email. If Google still blocks the request, open it in an incognito window.";
+      }
     })();
   </script>
 </body>
