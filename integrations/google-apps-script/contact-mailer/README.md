@@ -6,7 +6,8 @@ exposing a private API key in the public GitHub Pages source.
 ## Deploy from Jerome's Google account
 
 1. Sign in to the Google account that owns `balanguejerome@gmail.com`.
-2. Open `https://script.new` and replace the editor contents with `Code.gs`.
+2. Open `https://script.new` and replace the editor contents with `Code.gs`; keep
+   the matching `appsscript.json` manifest settings from this folder.
 3. Select **Deploy > New deployment > Web app**.
 4. Set **Execute as** to **Me** and **Who has access** to **Anyone**.
 5. Authorize MailApp when Google prompts for permission.
@@ -37,6 +38,26 @@ backend checks the count, combined size, extension, declared MIME type, decoded 
 executable signatures, and document container structure before adding every verified
 blob to the email. Executables, scripts, macro-enabled Office packages, archives, and
 renamed application files are rejected.
+
+## Review moderation and storage
+
+The same web-app deployment also powers the portfolio Reviews page. Review
+submissions use separate field names, a honeypot, a five-minute per-email rate limit,
+strict length/rating/consent validation, and a script lock for concurrent writes.
+Pending reviews are stored in script-wide Apps Script properties and are never
+returned by the public reviews response.
+
+Each valid submission sends Jerome a branded preview email with one-time **Accept &
+Post** and **Decline & Delete** links. Each link contains a high-entropy token; only
+its SHA-256 hash is stored. Approval removes the private reviewer email and token
+before exposing the display fields publicly. Rejection deletes the record and its
+index entry. Storage is intentionally capped at 80 retained pending/approved reviews
+to remain below the Apps Script property-store limit even with maximum-length copy.
+
+The static page requests published reviews with `?mode=reviews` in a hidden iframe.
+The response uses the existing trusted Google-origin plus
+`jerome-portfolio-contact-mailer` marker contract, and never includes reviewer email
+addresses or pending content.
 
 Google applies daily MailApp quotas. A consumer Gmail account currently has a limit
 of 100 email recipients per day; Google Workspace accounts currently have a higher

@@ -85,6 +85,13 @@ const contactUploadProgressLabel = document.querySelector("[data-contact-upload-
 const contactUploadProgressPercent = document.querySelector("[data-contact-upload-progress-percent]");
 const contactUploadProgressTrack = document.querySelector("[data-contact-upload-progress-track]");
 const contactUploadProgressBar = document.querySelector("[data-contact-upload-progress-bar]");
+const reviewForm = document.querySelector("[data-review-form]");
+const reviewFormStatus = document.querySelector("[data-review-form-status]");
+const reviewFormSubmit = reviewForm?.querySelector('button[type="submit"]');
+const reviewFormSubmitLabel = document.querySelector("[data-review-submit-label]");
+const reviewsDataFrame = document.querySelector("[data-reviews-data-frame]");
+const reviewList = document.querySelector("[data-review-list]");
+const reviewCount = document.querySelector("[data-review-count]");
 const siteToastStack = document.querySelector("[data-site-toast-stack]");
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 const CONTACT_SITE_ORIGIN = "https://jeromebalangue.github.io";
@@ -93,6 +100,7 @@ const CONTACT_MAILER_TIMEOUT_MS = 45000;
 const CONTACT_ATTACHMENT_MAX_BYTES = 5 * 1024 * 1024;
 const CONTACT_ATTACHMENT_MAX_COUNT = 10;
 const CONTACT_ATTACHMENTS_MAX_TOTAL_BYTES = 20 * 1024 * 1024;
+const REVIEW_FORM_TIMEOUT_MS = 45000;
 const SITE_TOAST_MAX_COUNT = 3;
 const SITE_TOAST_DEFAULT_DURATION_MS = 6000;
 const CONTACT_ATTACHMENT_DEFAULT_MESSAGE = "Up to 10 documents · 5 MB each · 20 MB total";
@@ -173,6 +181,9 @@ let contactMailerTimeout = null;
 let contactStatusToast = null;
 let contactSelectedAttachments = [];
 let contactUploadProgressResetTimer = null;
+let reviewFormTimeout = null;
+let reviewStatusToast = null;
+let reviewServiceReady = false;
 let educationExitArmed = false;
 let educationExitDirection = 0;
 let educationExitConfirmationReady = false;
@@ -274,7 +285,8 @@ const pageTitles = {
     "ai-generated-design": "A.I. Generated Design | Jerome Balangue",
     "video-editing": "Video Editing | Jerome Balangue",
     "why-work-with-me": "Why Work With Me | Jerome Balangue",
-    "contact-collaboration": "Contact & Collaboration | Jerome Balangue"
+    "contact-collaboration": "Contact & Collaboration | Jerome Balangue",
+    reviews: "Reviews | Jerome Balangue"
 };
 const cleanPageUrl = `${window.location.pathname}${window.location.search}`;
 const PAGE_SCROLL_EDGE_TOLERANCE = 1;
@@ -1924,6 +1936,7 @@ const showPage = (requestedPage, shouldScroll = true) => {
     setPrintShowcaseActive(pageId === "print-marketing-materials");
     setAIGalleryActive(pageId === "ai-generated-design");
     setVideoGalleryActive(pageId === "video-editing");
+    if (pageId === "reviews") requestPublishedReviews();
 
     document.body.dataset.page = pageId;
     document.title = pageTitles[pageId] || pageTitles.home;
@@ -2118,6 +2131,116 @@ const showContactToast = (message, type, title, duration = SITE_TOAST_DEFAULT_DU
         title,
         toast: contactStatusToast
     });
+};
+
+const showReviewToast = (message, type, title, duration = SITE_TOAST_DEFAULT_DURATION_MS) => {
+    reviewStatusToast = showSiteToast(message, type, {
+        duration,
+        title,
+        toast: reviewStatusToast
+    });
+};
+
+const clearReviewFormTimeout = () => {
+    window.clearTimeout(reviewFormTimeout);
+    reviewFormTimeout = null;
+};
+
+const setReviewServiceReady = (isReady, message = "") => {
+    reviewServiceReady = isReady;
+    if (reviewFormSubmit && !["sending", "pending"].includes(reviewForm?.dataset.state)) {
+        reviewFormSubmit.disabled = !isReady;
+    }
+    if (message && reviewFormStatus && reviewForm?.dataset.state !== "success") {
+        reviewFormStatus.textContent = message;
+    }
+};
+
+const createReviewStatusCard = (message, state = "") => {
+    const card = document.createElement("article");
+    card.className = "review-card review-card--status";
+    if (state) card.dataset.state = state;
+    const copy = document.createElement("p");
+    copy.textContent = message;
+    card.append(copy);
+    return card;
+};
+
+const formatReviewDate = (value) => {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "Published review";
+    return new Intl.DateTimeFormat("en-PH", {
+        month: "short",
+        year: "numeric"
+    }).format(date);
+};
+
+const renderPublishedReviews = (reviews) => {
+    if (!reviewList || !reviewCount) return;
+    const safeReviews = Array.isArray(reviews) ? reviews : [];
+    reviewList.replaceChildren();
+    reviewList.setAttribute("aria-busy", "false");
+    reviewCount.textContent = `${safeReviews.length} review${safeReviews.length === 1 ? "" : "s"}`;
+
+    if (safeReviews.length === 0) {
+        reviewList.append(createReviewStatusCard(
+            "No published reviews yet. Be the first to share your experience."
+        ));
+        return;
+    }
+
+    safeReviews.forEach((review) => {
+        const name = String(review?.name || "Portfolio client").trim() || "Portfolio client";
+        const company = String(review?.company || "Independent client").trim() || "Independent client";
+        const title = String(review?.title || "A creative collaboration").trim();
+        const feedback = String(review?.feedback || "").trim();
+        const rating = Math.min(5, Math.max(1, Number.parseInt(review?.rating, 10) || 1));
+
+        const card = document.createElement("article");
+        card.className = "review-card";
+
+        const person = document.createElement("div");
+        person.className = "review-card__person";
+        const avatar = document.createElement("span");
+        avatar.className = "review-card__avatar";
+        avatar.setAttribute("aria-hidden", "true");
+        avatar.textContent = Array.from(name)[0]?.toUpperCase() || "J";
+        const identity = document.createElement("span");
+        const personName = document.createElement("strong");
+        personName.textContent = name;
+        const personMeta = document.createElement("span");
+        personMeta.textContent = `${company} · ${formatReviewDate(review?.approvedAt)}`;
+        identity.append(personName, personMeta);
+        person.append(avatar, identity);
+
+        const stars = document.createElement("div");
+        stars.className = "review-card__stars";
+        stars.setAttribute("aria-label", `${rating} out of 5 stars`);
+        stars.textContent = `${"★".repeat(rating)}${"☆".repeat(5 - rating)}`;
+
+        const heading = document.createElement("h4");
+        heading.className = "review-card__title";
+        heading.textContent = title;
+        const reviewCopy = document.createElement("p");
+        reviewCopy.className = "review-card__feedback";
+        reviewCopy.textContent = feedback;
+
+        card.append(person, stars, heading, reviewCopy);
+        reviewList.append(card);
+    });
+};
+
+const requestPublishedReviews = () => {
+    if (!reviewsDataFrame || !reviewList) return;
+    if (window.location.origin !== CONTACT_SITE_ORIGIN) {
+        setReviewServiceReady(false, "Review submission is enabled on the live Jerome portfolio website.");
+        reviewList.replaceChildren(createReviewStatusCard(
+            "Published reviews load on the live Jerome portfolio website."
+        ));
+        reviewList.setAttribute("aria-busy", "false");
+        return;
+    }
+    reviewsDataFrame.src = `${contactForm.action}?mode=reviews&nonce=${Date.now()}`;
 };
 
 const clearContactMailerTimeout = () => {
@@ -2375,6 +2498,43 @@ window.addEventListener("message", (event) => {
         || !contactForm
     ) return;
 
+    if (event.data.type === "reviews") {
+        const isReviewServiceReady = event.data.reviewSubmissions === true;
+        setReviewServiceReady(
+            isReviewServiceReady,
+            isReviewServiceReady
+                ? "Reviews are checked by Jerome before they are published."
+                : "Review submission is temporarily unavailable."
+        );
+        renderPublishedReviews(event.data.reviews);
+        return;
+    }
+
+    if (event.data.type === "review-result" && reviewForm) {
+        clearReviewFormTimeout();
+        setReviewServiceReady(event.data.reviewSubmissions === true);
+        reviewFormSubmit.disabled = !reviewServiceReady;
+
+        if (event.data.success) {
+            const successMessage = event.data.message
+                || "Thank you! Your review was submitted for Jerome's approval.";
+            reviewForm.reset();
+            reviewForm.dataset.state = "success";
+            reviewFormSubmitLabel.textContent = "Review submitted";
+            reviewFormStatus.textContent = successMessage;
+            showReviewToast(successMessage, "success", "Review received", 8000);
+            requestPublishedReviews();
+            return;
+        }
+
+        const reviewErrorMessage = event.data.message || "Your review could not be submitted.";
+        reviewForm.dataset.state = "error";
+        reviewFormSubmitLabel.textContent = "Try again";
+        reviewFormStatus.textContent = reviewErrorMessage;
+        showReviewToast(reviewErrorMessage, "error", "Review not submitted", 8000);
+        return;
+    }
+
     if (event.data.type === "capabilities") {
         contactMailerCapabilityProbePending = false;
         contactDocumentAttachmentsEnabled = event.data.documentAttachments === true
@@ -2607,6 +2767,61 @@ contactForm?.addEventListener("submit", async (event) => {
 
     HTMLFormElement.prototype.submit.call(contactForm);
 });
+
+reviewForm?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    if (["sending", "pending"].includes(reviewForm.dataset.state)) return;
+
+    if (window.location.origin !== CONTACT_SITE_ORIGIN) {
+        const hostedReviewMessage = "Review submission is enabled on the live Jerome portfolio website.";
+        reviewForm.dataset.state = "error";
+        reviewFormSubmitLabel.textContent = "Use hosted site";
+        reviewFormStatus.textContent = hostedReviewMessage;
+        showReviewToast(hostedReviewMessage, "warning", "Live website required", 8000);
+        return;
+    }
+
+    if (!reviewServiceReady) {
+        const unavailableMessage = "The secure review service is still connecting. Please try again shortly.";
+        reviewForm.dataset.state = "error";
+        reviewFormStatus.textContent = unavailableMessage;
+        showReviewToast(unavailableMessage, "warning", "Review service connecting", 7000);
+        requestPublishedReviews();
+        return;
+    }
+
+    reviewForm.dataset.state = "sending";
+    reviewFormSubmit.disabled = true;
+    reviewFormSubmitLabel.textContent = "Submitting...";
+    reviewFormStatus.textContent = "Sending your review securely for Jerome's approval...";
+    showReviewToast(reviewFormStatus.textContent, "info", "Submitting review", 0);
+
+    clearReviewFormTimeout();
+    reviewFormTimeout = window.setTimeout(() => {
+        const delayedReviewMessage = "Your review was submitted, but confirmation is delayed. Please avoid submitting it again.";
+        reviewForm.dataset.state = "pending";
+        reviewFormSubmit.disabled = false;
+        reviewFormSubmitLabel.textContent = "Review submitted";
+        reviewFormStatus.textContent = delayedReviewMessage;
+        showReviewToast(delayedReviewMessage, "warning", "Review submitted", 9000);
+        reviewFormTimeout = null;
+    }, REVIEW_FORM_TIMEOUT_MS);
+
+    HTMLFormElement.prototype.submit.call(reviewForm);
+});
+
+if (reviewsDataFrame && reviewList && reviewForm) {
+    requestPublishedReviews();
+    window.setTimeout(() => {
+        if (reviewServiceReady || window.location.origin !== CONTACT_SITE_ORIGIN) return;
+        setReviewServiceReady(false, "The secure review service is temporarily unavailable.");
+        reviewList.replaceChildren(createReviewStatusCard(
+            "Published reviews could not be loaded. Please try again later.",
+            "error"
+        ));
+        reviewList.setAttribute("aria-busy", "false");
+    }, 12000);
+}
 
 const bindSocialFilterButton = (button) => {
     button.addEventListener("click", () => {

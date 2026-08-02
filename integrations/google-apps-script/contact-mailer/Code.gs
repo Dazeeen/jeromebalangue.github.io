@@ -13,7 +13,14 @@ const CONTACT_CONFIG = Object.freeze({
   maxAttachments: 10,
   maxAttachmentBytes: 5 * 1024 * 1024,
   maxTotalAttachmentBytes: 20 * 1024 * 1024,
-  maxUncompressedAttachmentBytes: 25 * 1024 * 1024
+  maxUncompressedAttachmentBytes: 25 * 1024 * 1024,
+  reviewRateLimitSeconds: 300,
+  maxReviewCompanyLength: 120,
+  maxReviewTitleLength: 120,
+  maxReviewFeedbackLength: 1200,
+  maxStoredReviews: 80,
+  reviewIndexKey: "reviews:index",
+  reviewPropertyPrefix: "review:"
 });
 
 const CONTACT_DOCUMENT_TYPES = Object.freeze({
@@ -53,7 +60,21 @@ const CONTACT_DOCUMENT_TYPES = Object.freeze({
   csv: Object.freeze({ mimeType: "text/csv", kind: "text" })
 });
 
-function doGet() {
+function doGet(event) {
+  const request = readRequest_(event);
+  if (String(request.mode || "").toLowerCase() === "reviews") {
+    return createBrowserResponse_({
+      type: "reviews",
+      success: true,
+      message: "Published reviews are ready.",
+      reviewSubmissions: true,
+      reviews: getPublishedReviews_()
+    });
+  }
+  if (request.reviewAction) {
+    return handleReviewModeration_(request);
+  }
+
   return createBrowserResponse_({
     type: "capabilities",
     success: true,
@@ -61,13 +82,17 @@ function doGet() {
     documentAttachments: true,
     maxAttachmentBytes: CONTACT_CONFIG.maxAttachmentBytes,
     maxAttachments: CONTACT_CONFIG.maxAttachments,
-    maxTotalAttachmentBytes: CONTACT_CONFIG.maxTotalAttachmentBytes
+    maxTotalAttachmentBytes: CONTACT_CONFIG.maxTotalAttachmentBytes,
+    reviewSubmissions: true
   });
 }
 
 function doPost(event) {
   try {
     const request = readRequest_(event);
+    if (String(request.submissionType || "").toLowerCase() === "review") {
+      return handleReviewSubmission_(request);
+    }
 
     // Silently accept bot-filled honeypots without sending an email.
     if (cleanText_(request._honey, 200)) {
@@ -169,6 +194,10 @@ function cleanText_(value, maxLength) {
     .slice(0, maxLength);
 }
 
+function cleanSingleLine_(value, maxLength) {
+  return cleanText_(value, maxLength).replace(/\s+/g, " ");
+}
+
 function isValidEmail_(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
@@ -186,6 +215,418 @@ function enforceRateLimit_(email) {
 
   if (cache.get(key)) throw new Error("RATE_LIMITED");
   cache.put(key, "1", CONTACT_CONFIG.rateLimitSeconds);
+}
+
+function handleReviewSubmission_(request) {
+  try {
+    if (cleanText_(request.reviewWebsite, 200)) {
+      return createBrowserResponse_({
+        type: "review-result",
+        success: true,
+        message: "Thank you! Your review was submitted for approval.",
+        reviewSubmissions: true
+      });
+    }
+
+    const name = cleanSingleLine_(request.reviewName, CONTACT_CONFIG.maxNameLength);
+    const email = cleanText_(request.reviewEmail, CONTACT_CONFIG.maxEmailLength).toLowerCase();
+    const company = cleanSingleLine_(request.reviewCompany, CONTACT_CONFIG.maxReviewCompanyLength);
+    const title = cleanSingleLine_(request.reviewTitle, CONTACT_CONFIG.maxReviewTitleLength);
+    const feedback = cleanText_(request.reviewFeedback, CONTACT_CONFIG.maxReviewFeedbackLength);
+    const rating = Number(request.reviewRating);
+    const consent = String(request.reviewConsent || "").toLowerCase() === "yes";
+
+    if (
+      !name
+      || !isValidEmail_(email)
+      || !title
+      || !feedback
+      || !Number.isInteger(rating)
+      || rating < 1
+      || rating > 5
+      || !consent
+    ) {
+      throw new Error("INVALID_REVIEW");
+    }
+
+    enforceReviewRateLimit_(email);
+    if (MailApp.getRemainingDailyQuota() < 1) throw new Error("DAILY_QUOTA_REACHED");
+
+    const submittedAtDate = new Date();
+    const moderationToken = createReviewModerationToken_();
+    const review = {
+      id: Utilities.getUuid().replace(/-/g, ""),
+      name,
+      email,
+      company,
+      title,
+      rating,
+      feedback,
+      status: "pending",
+      createdAt: submittedAtDate.toISOString(),
+      approvedAt: ""
+    };
+    review.tokenHash = hashReviewModerationToken_(review.id, moderationToken);
+
+    storePendingReview_(review);
+    try {
+      sendReviewModerationEmail_(review, moderationToken, submittedAtDate);
+    } catch (error) {
+      deleteReviewRecord_(review.id);
+      throw error;
+    }
+
+    return createBrowserResponse_({
+      type: "review-result",
+      success: true,
+      message: "Thank you! Your review was sent to Jerome for approval.",
+      reviewSubmissions: true
+    });
+  } catch (error) {
+    console.error(error);
+    const errorMessages = {
+      INVALID_REVIEW: "Please complete every required review field and choose a rating.",
+      REVIEW_RATE_LIMITED: "Please wait five minutes before submitting another review.",
+      REVIEW_STORAGE_FULL: "Review submission is temporarily full. Please contact Jerome directly.",
+      DAILY_QUOTA_REACHED: "The review notification service has reached today's email limit. Please try again tomorrow."
+    };
+    return createBrowserResponse_({
+      type: "review-result",
+      success: false,
+      message: errorMessages[error && error.message]
+        || "The review service is temporarily unavailable. Please try again later.",
+      reviewSubmissions: true
+    });
+  }
+}
+
+function enforceReviewRateLimit_(email) {
+  const key = "review:" + sha256Hex_(email);
+  const cache = CacheService.getScriptCache();
+  if (cache.get(key)) throw new Error("REVIEW_RATE_LIMITED");
+  cache.put(key, "1", CONTACT_CONFIG.reviewRateLimitSeconds);
+}
+
+function createReviewModerationToken_() {
+  return (Utilities.getUuid() + Utilities.getUuid()).replace(/-/g, "");
+}
+
+function sha256Hex_(value) {
+  return Utilities.computeDigest(
+    Utilities.DigestAlgorithm.SHA_256,
+    String(value),
+    Utilities.Charset.UTF_8
+  ).map(function (byte) {
+    return (byte + 256).toString(16).slice(-2);
+  }).join("");
+}
+
+function hashReviewModerationToken_(reviewId, token) {
+  return sha256Hex_("review-moderation:" + reviewId + ":" + token);
+}
+
+function secureStringsEqual_(left, right) {
+  const first = String(left || "");
+  const second = String(right || "");
+  let mismatch = first.length ^ second.length;
+  const maximumLength = Math.max(first.length, second.length);
+  for (let index = 0; index < maximumLength; index += 1) {
+    mismatch |= (first.charCodeAt(index) || 0) ^ (second.charCodeAt(index) || 0);
+  }
+  return mismatch === 0;
+}
+
+function getReviewProperties_() {
+  return PropertiesService.getScriptProperties();
+}
+
+function getReviewIndex_(properties) {
+  const rawIndex = properties.getProperty(CONTACT_CONFIG.reviewIndexKey);
+  if (!rawIndex) return [];
+
+  let parsedIndex;
+  try {
+    parsedIndex = JSON.parse(rawIndex);
+  } catch (error) {
+    return [];
+  }
+  if (!Array.isArray(parsedIndex)) return [];
+
+  const seen = {};
+  return parsedIndex.filter(function (reviewId) {
+    const safeId = String(reviewId || "");
+    if (!/^[a-f0-9]{32}$/i.test(safeId) || seen[safeId]) return false;
+    seen[safeId] = true;
+    return true;
+  }).slice(0, CONTACT_CONFIG.maxStoredReviews);
+}
+
+function getReviewRecord_(properties, reviewId) {
+  const rawReview = properties.getProperty(CONTACT_CONFIG.reviewPropertyPrefix + reviewId);
+  if (!rawReview) return null;
+  try {
+    const review = JSON.parse(rawReview);
+    return review && typeof review === "object" && !Array.isArray(review) ? review : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+function storePendingReview_(review) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    const properties = getReviewProperties_();
+    const reviewIndex = getReviewIndex_(properties);
+    if (reviewIndex.length >= CONTACT_CONFIG.maxStoredReviews) {
+      throw new Error("REVIEW_STORAGE_FULL");
+    }
+
+    const propertyKey = CONTACT_CONFIG.reviewPropertyPrefix + review.id;
+    const serializedReview = JSON.stringify(review);
+    if (serializedReview.length > 8000) throw new Error("INVALID_REVIEW");
+
+    properties.setProperty(propertyKey, serializedReview);
+    try {
+      reviewIndex.unshift(review.id);
+      properties.setProperty(CONTACT_CONFIG.reviewIndexKey, JSON.stringify(reviewIndex));
+    } catch (error) {
+      properties.deleteProperty(propertyKey);
+      throw error;
+    }
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function deleteReviewRecord_(reviewId) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    const properties = getReviewProperties_();
+    const reviewIndex = getReviewIndex_(properties).filter(function (storedId) {
+      return storedId !== reviewId;
+    });
+    properties.deleteProperty(CONTACT_CONFIG.reviewPropertyPrefix + reviewId);
+    properties.setProperty(CONTACT_CONFIG.reviewIndexKey, JSON.stringify(reviewIndex));
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function getPublishedReviews_() {
+  const properties = getReviewProperties_();
+  return getReviewIndex_(properties).map(function (reviewId) {
+    return getReviewRecord_(properties, reviewId);
+  }).filter(function (review) {
+    return review && review.status === "approved";
+  }).sort(function (left, right) {
+    return String(right.approvedAt || "").localeCompare(String(left.approvedAt || ""));
+  }).map(function (review) {
+    return {
+      id: review.id,
+      name: review.name,
+      company: review.company,
+      title: review.title,
+      rating: review.rating,
+      feedback: review.feedback,
+      approvedAt: review.approvedAt
+    };
+  });
+}
+
+function sendReviewModerationEmail_(review, moderationToken, submittedAtDate) {
+  const serviceUrl = ScriptApp.getService().getUrl();
+  if (!serviceUrl) throw new Error("REVIEW_SERVICE_UNAVAILABLE");
+  const approveUrl = createReviewModerationUrl_(serviceUrl, "approve", review.id, moderationToken);
+  const rejectUrl = createReviewModerationUrl_(serviceUrl, "reject", review.id, moderationToken);
+  const submittedAt = Utilities.formatDate(
+    submittedAtDate,
+    "Asia/Manila",
+    "MMMM d, yyyy 'at' h:mm a"
+  );
+
+  MailApp.sendEmail({
+    to: CONTACT_CONFIG.destinationEmail,
+    subject: review.rating + "-star website review from " + review.name + " - approval needed",
+    name: CONTACT_CONFIG.senderName,
+    replyTo: review.email,
+    body: createReviewModerationPlainTextEmail_(review, submittedAt, approveUrl, rejectUrl),
+    htmlBody: createReviewModerationHtmlEmail_(review, submittedAt, approveUrl, rejectUrl)
+  });
+}
+
+function createReviewModerationUrl_(serviceUrl, action, reviewId, token) {
+  return serviceUrl
+    + "?reviewAction=" + encodeURIComponent(action)
+    + "&reviewId=" + encodeURIComponent(reviewId)
+    + "&reviewToken=" + encodeURIComponent(token);
+}
+
+function createReviewModerationPlainTextEmail_(review, submittedAt, approveUrl, rejectUrl) {
+  return [
+    "NEW WEBSITE REVIEW - APPROVAL REQUIRED",
+    "",
+    "Reviewer: " + review.name,
+    "Email: " + review.email,
+    "Company: " + (review.company || "Not provided"),
+    "Rating: " + review.rating + "/5",
+    "Title: " + review.title,
+    "Submitted: " + submittedAt + " (Asia/Manila)",
+    "",
+    review.feedback,
+    "",
+    "ACCEPT AND POST:",
+    approveUrl,
+    "",
+    "DECLINE AND DELETE:",
+    rejectUrl,
+    "",
+    "Each moderation link can be used only once."
+  ].join("\n");
+}
+
+function createReviewModerationHtmlEmail_(review, submittedAt, approveUrl, rejectUrl) {
+  const safeName = escapeHtml_(review.name);
+  const safeEmail = escapeHtml_(review.email);
+  const safeCompany = escapeHtml_(review.company || "Independent client");
+  const safeTitle = escapeHtml_(review.title);
+  const safeFeedback = escapeHtml_(review.feedback).replace(/\r?\n/g, "<br>");
+  const safeSubmittedAt = escapeHtml_(submittedAt);
+  const safeApproveUrl = escapeHtml_(approveUrl);
+  const safeRejectUrl = escapeHtml_(rejectUrl);
+  const stars = new Array(review.rating + 1).join("&#9733; ");
+  const curtainImageUrl = CONTACT_CONFIG.curtainImageUrl;
+
+  return `<!doctype html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#02050c;font-family:Arial,Helvetica,sans-serif;color:#edf4ff;">
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">${safeName} submitted a ${review.rating}-star review for your approval.</div>
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" background="${curtainImageUrl}" style="width:100%;padding:32px 12px;background-color:#02050c;background-image:linear-gradient(90deg,rgba(1,5,12,.54),rgba(15,68,166,.3)),url(${curtainImageUrl});background-position:center;background-size:cover;">
+    <tr><td align="center">
+      <table role="presentation" width="640" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:640px;border:1px solid #31568e;border-radius:22px;overflow:hidden;background:#f5f8fd;box-shadow:0 22px 60px rgba(0,0,0,.52);">
+        <tr><td style="padding:34px 38px;background:#082b68;text-align:center;color:#fff;">
+          <div style="font-size:10px;font-weight:800;letter-spacing:2.8px;text-transform:uppercase;color:#9fc2ff;">Jerome Balangue Portfolio</div>
+          <h1 style="margin:12px 0 8px;font-size:36px;line-height:1.08;letter-spacing:-1px;">New Website Review</h1>
+          <p style="margin:0;color:#d5e5ff;font-size:14px;line-height:1.6;">Preview the submission, then publish it or remove it.</p>
+        </td></tr>
+        <tr><td style="padding:34px 38px;background:#f5f8fd;color:#10213e;">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+            <tr>
+              <td>
+                <div style="font-size:19px;font-weight:800;color:#0d1c35;">${safeName}</div>
+                <div style="margin-top:4px;font-size:12px;color:#61728d;">${safeCompany} &middot; <a href="mailto:${safeEmail}" style="color:#326fd0;">${safeEmail}</a></div>
+              </td>
+              <td align="right" style="font-size:20px;letter-spacing:2px;color:#ffb915;white-space:nowrap;">${stars}</td>
+            </tr>
+          </table>
+          <div style="margin-top:22px;padding:22px;border:1px solid #cfdaea;border-radius:14px;background:#fff;">
+            <div style="font-size:18px;font-weight:800;color:#10213e;">${safeTitle}</div>
+            <div style="margin-top:10px;font-size:14px;line-height:1.75;color:#42536e;">${safeFeedback}</div>
+          </div>
+          <div style="margin-top:14px;font-size:11px;color:#73839b;">Submitted ${safeSubmittedAt} (Asia/Manila)</div>
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin-top:26px;">
+            <tr>
+              <td width="50%" style="padding-right:6px;"><a href="${safeApproveUrl}" style="display:block;padding:15px 12px;border-radius:999px;background:#155fd7;color:#fff;font-size:11px;font-weight:800;letter-spacing:.7px;text-align:center;text-decoration:none;text-transform:uppercase;">Accept &amp; Post</a></td>
+              <td width="50%" style="padding-left:6px;"><a href="${safeRejectUrl}" style="display:block;padding:14px 12px;border:1px solid #d95870;border-radius:999px;background:#fff;color:#b32645;font-size:11px;font-weight:800;letter-spacing:.7px;text-align:center;text-decoration:none;text-transform:uppercase;">Decline &amp; Delete</a></td>
+            </tr>
+          </table>
+          <p style="margin:18px 0 0;text-align:center;font-size:10px;line-height:1.6;color:#8290a4;">Each secure moderation link expires after one action.</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+}
+
+function handleReviewModeration_(request) {
+  const action = String(request.reviewAction || "").toLowerCase();
+  const reviewId = String(request.reviewId || "");
+  const token = String(request.reviewToken || "");
+
+  if (
+    ["approve", "reject"].indexOf(action) === -1
+    || !/^[a-f0-9]{32}$/i.test(reviewId)
+    || !/^[a-f0-9]{64}$/i.test(token)
+  ) {
+    return createReviewModerationPage_(false, "Invalid moderation link", "This review action link is incomplete or invalid.");
+  }
+
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+    const properties = getReviewProperties_();
+    const review = getReviewRecord_(properties, reviewId);
+    if (!review || review.status !== "pending") {
+      return createReviewModerationPage_(false, "Review already handled", "This review is no longer awaiting moderation.");
+    }
+
+    const expectedHash = hashReviewModerationToken_(reviewId, token);
+    if (!secureStringsEqual_(review.tokenHash, expectedHash)) {
+      return createReviewModerationPage_(false, "Invalid moderation link", "This secure review action could not be verified.");
+    }
+
+    if (action === "approve") {
+      review.status = "approved";
+      review.approvedAt = new Date().toISOString();
+      delete review.email;
+      delete review.tokenHash;
+      properties.setProperty(
+        CONTACT_CONFIG.reviewPropertyPrefix + reviewId,
+        JSON.stringify(review)
+      );
+      return createReviewModerationPage_(
+        true,
+        "Review accepted and posted",
+        review.name + "'s review is now published on the portfolio."
+      );
+    }
+
+    properties.deleteProperty(CONTACT_CONFIG.reviewPropertyPrefix + reviewId);
+    const reviewIndex = getReviewIndex_(properties).filter(function (storedId) {
+      return storedId !== reviewId;
+    });
+    properties.setProperty(CONTACT_CONFIG.reviewIndexKey, JSON.stringify(reviewIndex));
+    return createReviewModerationPage_(
+      true,
+      "Review declined and deleted",
+      "The pending review was permanently removed and will not be published."
+    );
+  } catch (error) {
+    console.error(error);
+    return createReviewModerationPage_(false, "Moderation unavailable", "The review could not be updated. Please try the link again later.");
+  } finally {
+    if (lock.hasLock()) lock.releaseLock();
+  }
+}
+
+function createReviewModerationPage_(success, title, message) {
+  const safeTitle = escapeHtml_(title);
+  const safeMessage = escapeHtml_(message);
+  const safeSiteUrl = escapeHtml_(CONTACT_CONFIG.siteUrl + "#reviews");
+  const safeCurtainUrl = escapeHtml_(CONTACT_CONFIG.curtainImageUrl);
+  const statusColor = success ? "#66e49b" : "#ff8197";
+
+  return HtmlService.createHtmlOutput(`<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>${safeTitle}</title>
+</head>
+<body style="min-height:100vh;margin:0;display:grid;place-items:center;padding:24px;box-sizing:border-box;background:#02050c url(${safeCurtainUrl}) center/cover no-repeat;font-family:Arial,Helvetica,sans-serif;color:#eef4ff;">
+  <main style="width:min(100%,560px);padding:42px 36px;border:1px solid #31568e;border-radius:22px;background:rgba(5,18,43,.96);box-shadow:0 24px 70px rgba(0,0,0,.55);text-align:center;">
+    <div style="width:54px;height:54px;margin:0 auto;border:2px solid ${statusColor};border-radius:50%;display:grid;place-items:center;color:${statusColor};font-size:25px;">${success ? "&#10003;" : "!"}</div>
+    <div style="margin-top:22px;font-size:10px;font-weight:800;letter-spacing:2.5px;text-transform:uppercase;color:#91b8fb;">Review moderation</div>
+    <h1 style="margin:12px 0 10px;font-size:34px;line-height:1.12;">${safeTitle}</h1>
+    <p style="margin:0;color:#bdcdea;font-size:14px;line-height:1.7;">${safeMessage}</p>
+    <a href="${safeSiteUrl}" style="display:inline-block;margin-top:28px;padding:14px 24px;border-radius:999px;background:#155fd7;color:#fff;font-size:11px;font-weight:800;letter-spacing:.8px;text-decoration:none;text-transform:uppercase;">View reviews page</a>
+  </main>
+</body>
+</html>`);
 }
 
 function createDocumentAttachments_(request) {
@@ -564,7 +1005,9 @@ function createBrowserResponse_(payload) {
     documentAttachments: Boolean(payload.documentAttachments),
     maxAttachmentBytes: Number(payload.maxAttachmentBytes || 0),
     maxAttachments: Number(payload.maxAttachments || 0),
-    maxTotalAttachmentBytes: Number(payload.maxTotalAttachmentBytes || 0)
+    maxTotalAttachmentBytes: Number(payload.maxTotalAttachmentBytes || 0),
+    reviewSubmissions: Boolean(payload.reviewSubmissions),
+    reviews: Array.isArray(payload.reviews) ? payload.reviews : []
   }).replace(/</g, "\\u003c");
   const targetOrigin = JSON.stringify(CONTACT_CONFIG.allowedOrigin);
 

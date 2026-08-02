@@ -9,7 +9,7 @@
     <script src="static/js/head.js"></script>
     <link rel="preload" href="static/fonts/manrope-latin.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="preload" href="static/fonts/pinyon-script-latin.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="stylesheet" href="static/css/main.css?v=1.0.47">
+    <link rel="stylesheet" href="static/css/main.css?v=1.0.48">
     <link rel="preload" href="static/media/images/site/portfolio-background.png" as="image">
     <link rel="preload" href="static/media/images/home/jerome-hero-cutout.png" as="image">
     <link rel="preload" href="static/media/images/about/jerome-laptop-cutout.png" as="image">
@@ -80,9 +80,9 @@
                     </a>
                 </li>
                 <li class="toc-sidebar__item">
-                    <a class="toc-sidebar__link" href="#thank-you">
-                        <span class="toc-sidebar__index" data-keyword="Thanks">09</span>
-                        <span class="toc-sidebar__label">Thank You</span>
+                    <a class="toc-sidebar__link" href="#reviews">
+                        <span class="toc-sidebar__index" data-keyword="Reviews">09</span>
+                        <span class="toc-sidebar__label">Reviews</span>
                     </a>
                 </li>
             </ol>
@@ -693,6 +693,121 @@
         </div>
     </section>
 
+    <section class="reviews-section page-view" id="reviews" data-page="reviews"
+        aria-labelledby="reviews-title">
+        <div class="reviews-section__shell">
+            <div class="reviews-intro">
+                <p class="reviews-intro__eyebrow">09 / Your words matter</p>
+                <h2 class="reviews-intro__title" id="reviews-title">
+                    We would love to hear about your experience.
+                </h2>
+                <p class="reviews-intro__copy">
+                    Worked with Jerome? Share the experience, creative outcome, and the difference the
+                    collaboration made. Every review is checked before it appears here.
+                </p>
+
+                <section class="reviews-feed" aria-labelledby="published-reviews-title">
+                    <header class="reviews-feed__header">
+                        <div>
+                            <p>Client stories</p>
+                            <h3 id="published-reviews-title">Published reviews</h3>
+                        </div>
+                        <span class="reviews-feed__count" data-review-count aria-live="polite">0 reviews</span>
+                    </header>
+                    <div class="reviews-feed__list" data-review-list aria-live="polite" aria-busy="true">
+                        <article class="review-card review-card--status" data-review-status>
+                            <span class="review-card__loader" aria-hidden="true"></span>
+                            <p>Loading published reviews&hellip;</p>
+                        </article>
+                    </div>
+                </section>
+            </div>
+
+            <div class="review-form-card">
+                <header class="review-form-card__header">
+                    <p>Share your experience</p>
+                    <h3>Write a review</h3>
+                </header>
+
+                <form class="review-form"
+                    action="https://script.google.com/macros/s/AKfycbxwS5NBw7Lqgjas7Kh7P2QtIq_b2PMLZejBw3RN6jmFLuJ493m_xT1vEsq8akp2TU0F-A/exec"
+                    method="POST" target="review-mailer-frame" data-review-form>
+                    <input type="hidden" name="submissionType" value="review">
+
+                    <div class="review-form__row">
+                        <div class="review-form__field">
+                            <label for="review-name">Full Name</label>
+                            <input id="review-name" name="reviewName" type="text" maxlength="100"
+                                autocomplete="name" required>
+                        </div>
+                        <div class="review-form__field">
+                            <label for="review-email">Your Email</label>
+                            <input id="review-email" name="reviewEmail" type="email" maxlength="254"
+                                autocomplete="email" required>
+                        </div>
+                    </div>
+
+                    <div class="review-form__field">
+                        <label for="review-company">Company Name <span>Optional</span></label>
+                        <input id="review-company" name="reviewCompany" type="text" maxlength="120"
+                            autocomplete="organization">
+                    </div>
+
+                    <div class="review-form__field">
+                        <label for="review-title">Review Title</label>
+                        <input id="review-title" name="reviewTitle" type="text" maxlength="120" required>
+                    </div>
+
+                    <fieldset class="review-form__rating">
+                        <legend>Your Rating</legend>
+                        <div class="review-form__stars" data-review-rating>
+                            <input id="review-rating-5" name="reviewRating" type="radio" value="5" required>
+                            <label for="review-rating-5" aria-label="5 stars">&#9733;</label>
+                            <input id="review-rating-4" name="reviewRating" type="radio" value="4">
+                            <label for="review-rating-4" aria-label="4 stars">&#9733;</label>
+                            <input id="review-rating-3" name="reviewRating" type="radio" value="3">
+                            <label for="review-rating-3" aria-label="3 stars">&#9733;</label>
+                            <input id="review-rating-2" name="reviewRating" type="radio" value="2">
+                            <label for="review-rating-2" aria-label="2 stars">&#9733;</label>
+                            <input id="review-rating-1" name="reviewRating" type="radio" value="1">
+                            <label for="review-rating-1" aria-label="1 star">&#9733;</label>
+                        </div>
+                    </fieldset>
+
+                    <div class="review-form__field review-form__field--feedback">
+                        <label for="review-feedback">Write Feedback</label>
+                        <textarea id="review-feedback" name="reviewFeedback" rows="5" maxlength="1200"
+                            required></textarea>
+                    </div>
+
+                    <label class="review-form__consent">
+                        <input name="reviewConsent" type="checkbox" value="yes" required>
+                        <span>I agree that my name, company, rating, and review may be published. My email stays private.</span>
+                    </label>
+
+                    <input class="review-form__honey" type="text" name="reviewWebsite" tabindex="-1"
+                        autocomplete="off" aria-hidden="true">
+
+                    <button class="review-form__submit" type="submit" disabled>
+                        <span data-review-submit-label>Submit Review</span>
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M5 12h13M13 6l6 6-6 6"></path>
+                        </svg>
+                    </button>
+                    <p class="review-form__status" data-review-form-status aria-live="polite">
+                        Connecting to the secure review service&hellip;
+                    </p>
+                </form>
+            </div>
+
+            <span class="reviews-section__index" aria-hidden="true">[9]</span>
+        </div>
+        <iframe name="review-mailer-frame" title="Review submission delivery" hidden aria-hidden="true"
+            tabindex="-1"></iframe>
+        <iframe name="reviews-data-frame" title="Published reviews data" hidden aria-hidden="true"
+            tabindex="-1" data-reviews-data-frame></iframe>
+    </section>
+
     <div class="ai-viewer" role="dialog" aria-modal="true" aria-labelledby="ai-viewer-title"
         aria-hidden="true">
         <button class="ai-viewer__backdrop" type="button" tabindex="-1"
@@ -837,7 +952,7 @@
     <script src="static/media/images/social-media-designs/gallery-data.js?v=1.0.16"></script>
     <script src="static/media/images/AI_generated_design/gallery-data.js?v=1.0.21"></script>
     <script src="static/media/videos/gallery-data.js?v=1.0.1"></script>
-    <script src="static/js/main.js?v=1.0.41"></script>
+    <script src="static/js/main.js?v=1.0.42"></script>
 </body>
 
 </html>

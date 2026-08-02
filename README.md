@@ -148,3 +148,14 @@ The attachment field supports drag-and-drop or file selection for up to 10 verif
 documents, capped at 5 MB each and 20 MB combined. Selected filenames and sizes are
 shown before submission, and preparation/upload progress remains visible while the
 message is being delivered.
+
+## Moderated reviews
+
+The final portfolio page is a blue-curtain Reviews experience with an accessible
+five-star form and a live list of approved client stories. New reviews are saved as
+private pending records in Google Apps Script properties and trigger a branded
+preview email to Jerome. The email contains one-time **Accept & Post** and **Decline
+& Delete** actions. Approval removes the private email and moderation token before
+publishing the review; rejection permanently deletes the pending record. The public
+reviews response includes only the reviewer's display name, optional company, title,
+rating, feedback, and approval date.
