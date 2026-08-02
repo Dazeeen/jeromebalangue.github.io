@@ -2186,8 +2186,6 @@ const formatReviewDate = (value) => {
 
 const createHomeTestimonialCard = (review, hiddenDuplicate = false) => {
     const name = String(review?.name || "Portfolio client").trim() || "Portfolio client";
-    const company = String(review?.company || "Independent client").trim() || "Independent client";
-    const title = String(review?.title || "A creative collaboration").trim();
     const feedback = String(review?.feedback || "").trim();
     const rating = Math.min(5, Math.max(1, Number.parseInt(review?.rating, 10) || 1));
 
@@ -2203,6 +2201,14 @@ const createHomeTestimonialCard = (review, hiddenDuplicate = false) => {
     orbit.className = "home-testimonial-card__orbit";
     orbit.setAttribute("aria-hidden", "true");
 
+    const label = document.createElement("span");
+    label.className = "home-testimonial-card__label";
+    label.textContent = "testimonial";
+    label.setAttribute("aria-hidden", "true");
+
+    const panel = document.createElement("div");
+    panel.className = "home-testimonial-card__panel";
+
     const stars = document.createElement("p");
     stars.className = "home-testimonial-card__stars";
     stars.setAttribute("aria-label", `${rating} out of 5 stars`);
@@ -2212,19 +2218,12 @@ const createHomeTestimonialCard = (review, hiddenDuplicate = false) => {
     personName.className = "home-testimonial-card__name";
     personName.textContent = name;
 
-    const meta = document.createElement("p");
-    meta.className = "home-testimonial-card__meta";
-    meta.textContent = `${company} · ${formatReviewDate(review?.approvedAt)}`;
-
-    const heading = document.createElement("h3");
-    heading.className = "home-testimonial-card__title";
-    heading.textContent = title;
-
     const reviewCopy = document.createElement("p");
     reviewCopy.className = "home-testimonial-card__feedback";
     reviewCopy.textContent = feedback;
 
-    card.append(orbit, stars, personName, meta, heading, reviewCopy);
+    panel.append(personName, stars, reviewCopy);
+    card.append(label, orbit, panel);
     return card;
 };
 
@@ -2234,7 +2233,7 @@ const setHomeTestimonialsStatus = (message, state = "") => {
     status.className = "home-testimonials__status";
     status.textContent = message;
     if (state) status.dataset.state = state;
-    homeReviewTrack.classList.remove("is-ready");
+    homeReviewTrack.classList.remove("is-ready", "is-static");
     homeReviewTrack.style.removeProperty("--home-review-duration");
     homeReviewTrack.replaceChildren(status);
     homeReviewTrack.setAttribute("aria-busy", "false");
@@ -2248,27 +2247,29 @@ const renderHomeTestimonials = (reviews) => {
         return;
     }
 
-    const displayReviews = Array.from(
-        { length: Math.max(4, safeReviews.length) },
-        (_, index) => safeReviews[index % safeReviews.length]
-    );
     const createGroup = (hiddenGroup = false) => {
         const group = document.createElement("div");
         group.className = "home-testimonials__group";
         if (hiddenGroup) group.setAttribute("aria-hidden", "true");
-        displayReviews.forEach((review, index) => {
-            group.append(createHomeTestimonialCard(
-                review,
-                hiddenGroup || index >= safeReviews.length
-            ));
+        safeReviews.forEach((review) => {
+            group.append(createHomeTestimonialCard(review, hiddenGroup));
         });
         return group;
     };
 
+    homeReviewTrack.classList.remove("is-ready", "is-static");
+    if (safeReviews.length === 1) {
+        homeReviewTrack.replaceChildren(createGroup());
+        homeReviewTrack.style.removeProperty("--home-review-duration");
+        homeReviewTrack.classList.add("is-ready", "is-static");
+        homeReviewTrack.setAttribute("aria-busy", "false");
+        return;
+    }
+
     homeReviewTrack.replaceChildren(createGroup(), createGroup(true));
     homeReviewTrack.style.setProperty(
         "--home-review-duration",
-        `${Math.max(48, displayReviews.length * 13)}s`
+        `${Math.max(42, safeReviews.length * 15)}s`
     );
     homeReviewTrack.classList.add("is-ready");
     homeReviewTrack.setAttribute("aria-busy", "false");
