@@ -245,7 +245,8 @@ globalThis.reviewApi = {
   list: getPublishedReviews_,
   get: doGet,
   setup: setupPortfolioStorage,
-  storeInquiry: storeInquiryInDrive_
+  storeInquiry: storeInquiryInDrive_,
+  resendPending: resendPendingReviewModerationEmails
 };`, context);
 
     const findFolder = (parent, name) => parent.folders.find((folder) => folder.name === name);
@@ -333,6 +334,33 @@ test("Accept and Post updates the private Sheet row and publishes only public fi
     const publicResponse = api.get({ parameter: { mode: "reviews" } }).getContent();
     assert.match(publicResponse, /Published reviews are ready/u);
     assert.doesNotMatch(publicResponse, /hello@example\.com/u);
+});
+
+test("moderation emails always use the fixed production web-app URL", () => {
+    const { api, emails } = createReviewBackend();
+    api.submit({ ...validReview });
+    const approveUrl = moderationLink(emails[0].body, "ACCEPT AND POST");
+    const rejectUrl = moderationLink(emails[0].body, "DECLINE AND DELETE");
+
+    assert.equal(
+        approveUrl.origin + approveUrl.pathname,
+        "https://script.google.com/macros/s/AKfycbxwS5NBw7Lqgjas7Kh7P2QtIq_b2PMLZejBw3RN6jmFLuJ493m_xT1vEsq8akp2TU0F-A/exec"
+    );
+    assert.equal(rejectUrl.origin + rejectUrl.pathname, approveUrl.origin + approveUrl.pathname);
+});
+
+test("pending reviews can receive a rotated replacement moderation link", () => {
+    const { api, emails } = createReviewBackend();
+    api.submit({ ...validReview });
+    const oldApproveUrl = moderationLink(emails[0].body, "ACCEPT AND POST");
+    emails.length = 0;
+
+    assert.equal(api.resendPending().resent, 1);
+    assert.equal(emails.length, 1);
+    const newApproveUrl = moderationLink(emails[0].body, "ACCEPT AND POST");
+    assert.notEqual(newApproveUrl.searchParams.get("reviewToken"), oldApproveUrl.searchParams.get("reviewToken"));
+    assert.match(api.moderate(Object.fromEntries(oldApproveUrl.searchParams)).getContent(), /Invalid moderation link/u);
+    assert.match(api.moderate(Object.fromEntries(newApproveUrl.searchParams)).getContent(), /Review accepted and posted/u);
 });
 
 test("Decline and Delete permanently removes the pending Sheet row", () => {
@@ -454,6 +482,7 @@ test("the review backend uses locked Drive folders and Sheets with private publi
     assert.match(backend, /inquiriesFolderName: "Inquiries"/u);
     assert.match(backend, /reviewsFolderName: "Reviews"/u);
     assert.match(backend, /reviewsSpreadsheetName: "Portfolio Reviews"/u);
+    assert.match(backend, /webAppUrl: "https:\/\/script\.google\.com\/macros\/s\/AKfycbxwS5NBw7Lqgjas7Kh7P2QtIq_b2PMLZejBw3RN6jmFLuJ493m_xT1vEsq8akp2TU0F-A\/exec"/u);
     assert.match(backend, /DriveApp\.getRootFolder\(\)/u);
     assert.match(backend, /SpreadsheetApp\.create\(CONTACT_CONFIG\.reviewsSpreadsheetName\)/u);
     assert.match(backend, /LockService\.getScriptLock\(\)/u);

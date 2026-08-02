@@ -4,6 +4,7 @@ const CONTACT_CONFIG = Object.freeze({
   responseSource: "jerome-portfolio-contact-mailer",
   senderName: "Jerome Balangue Portfolio",
   siteUrl: "https://jeromebalangue.github.io/",
+  webAppUrl: "https://script.google.com/macros/s/AKfycbxwS5NBw7Lqgjas7Kh7P2QtIq_b2PMLZejBw3RN6jmFLuJ493m_xT1vEsq8akp2TU0F-A/exec",
   curtainImageUrl: "https://jeromebalangue.github.io/static/media/images/site/portfolio-background.png",
   profileImageUrl: "https://jeromebalangue.github.io/static/media/images/home/jerome-hero-portrait.jpg",
   rateLimitSeconds: 60,
@@ -723,10 +724,8 @@ function getPublishedReviews_() {
 }
 
 function sendReviewModerationEmail_(review, moderationToken, submittedAtDate) {
-  const serviceUrl = ScriptApp.getService().getUrl();
-  if (!serviceUrl) throw new Error("REVIEW_SERVICE_UNAVAILABLE");
-  const approveUrl = createReviewModerationUrl_(serviceUrl, "approve", review.id, moderationToken);
-  const rejectUrl = createReviewModerationUrl_(serviceUrl, "reject", review.id, moderationToken);
+  const approveUrl = createReviewModerationUrl_(CONTACT_CONFIG.webAppUrl, "approve", review.id, moderationToken);
+  const rejectUrl = createReviewModerationUrl_(CONTACT_CONFIG.webAppUrl, "reject", review.id, moderationToken);
   const submittedAt = Utilities.formatDate(
     submittedAtDate,
     "Asia/Manila",
@@ -741,6 +740,45 @@ function sendReviewModerationEmail_(review, moderationToken, submittedAtDate) {
     body: createReviewModerationPlainTextEmail_(review, submittedAt, approveUrl, rejectUrl),
     htmlBody: createReviewModerationHtmlEmail_(review, submittedAt, approveUrl, rejectUrl)
   });
+}
+
+function resendPendingReviewModerationEmails() {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    const storage = ensurePortfolioStorageUnlocked_();
+    const pendingReviews = getSheetReviewsUnlocked_(storage.reviewSheet).map(function (review, index) {
+      return { review, rowNumber: index + 2 };
+    }).filter(function (entry) {
+      return entry.review.status === "pending";
+    });
+
+    if (MailApp.getRemainingDailyQuota() < pendingReviews.length) {
+      throw new Error("DAILY_QUOTA_REACHED");
+    }
+
+    pendingReviews.forEach(function (entry) {
+      const moderationToken = createReviewModerationToken_();
+      const previousTokenHash = entry.review.tokenHash;
+      const nextTokenHash = hashReviewModerationToken_(entry.review.id, moderationToken);
+      storage.reviewSheet.getRange(entry.rowNumber, 11, 1, 1).setValues([[nextTokenHash]]);
+      try {
+        const submittedAtDate = new Date(entry.review.createdAt);
+        sendReviewModerationEmail_(
+          entry.review,
+          moderationToken,
+          Number.isNaN(submittedAtDate.getTime()) ? new Date() : submittedAtDate
+        );
+      } catch (error) {
+        storage.reviewSheet.getRange(entry.rowNumber, 11, 1, 1).setValues([[previousTokenHash]]);
+        throw error;
+      }
+    });
+
+    return { resent: pendingReviews.length };
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 function createReviewModerationUrl_(serviceUrl, action, reviewId, token) {

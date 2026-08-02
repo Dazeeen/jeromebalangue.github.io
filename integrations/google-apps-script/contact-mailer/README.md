@@ -72,10 +72,16 @@ Sheet becomes the canonical review store.
 
 Each valid submission sends Jerome a branded preview email with one-time **Accept &
 Post** and **Decline & Delete** links. Each link contains a high-entropy token; only
-its SHA-256 hash is stored. Approval marks the private Sheet row as approved and
+its SHA-256 hash is stored. Moderation links use the fixed production `/exec` URL,
+so they cannot drift to a development or Drive-file URL when deployment context
+changes. Approval marks the private Sheet row as approved and
 clears the token hash before exposing only the display fields publicly. Rejection
 deletes the pending Sheet row. Reviewer email remains private in the Sheet and is
 never returned to the website.
+
+If a deployment URL ever changes, update `CONTACT_CONFIG.webAppUrl`, redeploy, then
+run `resendPendingReviewModerationEmails()` once from the Apps Script editor. It
+rotates the stored hashes and sends fresh working links for pending rows only.
 
 The static page requests published reviews with `?mode=reviews` in a hidden iframe.
 The response uses the existing trusted Google-origin plus
