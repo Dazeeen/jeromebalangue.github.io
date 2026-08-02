@@ -34,7 +34,7 @@ test("published review data renders complete, reference-style testimonial cards 
     assert.match(css, /\.home-testimonial-card\s*\{[\s\S]*?flex: 0 0 clamp\(22rem, 29vw, 26\.1875rem\)/u);
     assert.match(css, /\.home-testimonial-card__panel\s*\{[\s\S]*?width: 87\.1cqi;[\s\S]*?min-height: 45\.8cqi;/u);
     assert.match(css, /\.home-testimonial-card__orbit\s*\{[\s\S]*?top: 20\.05cqi;[\s\S]*?width: 30\.8cqi;/u);
-    assert.match(css, /\.home-testimonial-card__orbit::before\s*\{[\s\S]*?clip-path: inset\(0 0 44% 0\)/u);
+    assert.match(css, /\.home-testimonial-card__orbit::before\s*\{[\s\S]*?clip-path: inset\(0 0 49% 0\)/u);
     assert.match(css, /\.home-testimonial-card__dots\s*\{[\s\S]*?justify-content: space-between;/u);
     assert.match(css, /\.home-testimonial-card__dots i\s*\{[\s\S]*?border-radius: 50%;/u);
     assert.match(css, /\.home-testimonial-card__dots--left\s*\{[\s\S]*?top: 32\.5cqi;/u);
@@ -62,6 +62,6 @@ test("the testimonial list continuously auto-scrolls, pauses for interaction, an
     assert.match(css, /@keyframes home-testimonials-scroll[\s\S]*?translate3d/u);
     assert.match(css, /@media \(prefers-reduced-motion: reduce\)[\s\S]*?\.home-testimonials__track\.is-ready\s*\{[\s\S]*?animation: none;/u);
     assert.match(script, /pageJumpLinks\.forEach/u);
-    assert.match(html, /static\/css\/main\.css\?v=1\.0\.54/u);
+    assert.match(html, /static\/css\/main\.css\?v=1\.0\.55/u);
     assert.match(html, /static\/js\/main\.js\?v=1\.0\.47/u);
 });
