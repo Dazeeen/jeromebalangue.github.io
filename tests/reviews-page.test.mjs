@@ -84,5 +84,5 @@ test("the review layout adopts the blue-curtain theme and is responsive", () => 
     assert.match(css, /\.review-form__field input,[\s\S]*?font-size: clamp\(0\.76rem, 0\.9vw, 0\.84rem\);/u);
     assert.match(css, /@media \(max-width: 780px\)[\s\S]*?\.reviews-section__shell/u);
     assert.match(html, /static\/css\/main\.css\?v=1\.0\.58/u);
-    assert.match(html, /static\/js\/main\.js\?v=1\.0\.53/u);
+    assert.match(html, /static\/js\/main\.js\?v=1\.0\.54/u);
 });

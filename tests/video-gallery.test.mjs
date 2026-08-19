@@ -73,6 +73,7 @@ test("the page renders one dynamic categorized Video Editing view", async () => 
     assert.match(script, /preview\.src = getDriveThumbnailUrl\(entry\.id\);/u);
     assert.match(script, /videoDetailFrame\.src = previewUrl;/u);
     assert.match(script, /getDrivePreviewUrl/u);
+    assert.match(script, /button\.addEventListener\("click", \(\) => openVideoDetail\(index, button\)\);/u);
     assert.doesNotMatch(script, /preview\.src = entry\.src|document\.createElement\("video"\)/u);
     assert.doesNotMatch(html, /data-video-gallery-open|data-video-detail-gallery|data-video-mosaic/u);
     assert.doesNotMatch(script, /openVideoMosaic|closeVideoMosaic|renderVideoMosaic/u);

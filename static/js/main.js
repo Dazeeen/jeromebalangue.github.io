@@ -1812,7 +1812,7 @@ const renderActiveVideoCategory = () => {
         button.type = "button";
         button.dataset.videoIndex = index;
         button.style.setProperty("--video-poster-index", index);
-        button.setAttribute("aria-label", `Focus ${entry.title}`);
+        button.setAttribute("aria-label", `Open ${entry.title}`);
 
         const preview = document.createElement("img");
         preview.className = "video-poster__preview";
@@ -1841,13 +1841,7 @@ const renderActiveVideoCategory = () => {
 
         button.addEventListener("pointerenter", () => setVideoActiveIndex(index, { scroll: false }));
         button.addEventListener("focus", () => setVideoActiveIndex(index, { scroll: false }));
-        button.addEventListener("click", () => {
-            if (videoActiveIndex !== index) {
-                setVideoActiveIndex(index);
-                return;
-            }
-            openVideoDetail(index, button);
-        });
+        button.addEventListener("click", () => openVideoDetail(index, button));
     });
 
     videoGallery.replaceChildren(cardFragment);
