@@ -26,10 +26,11 @@ test("the public pages enforce a restrictive browser policy", () => {
 
 test("the Drive catalog is sandboxed and rejects spoofed messages", () => {
     assert.match(mainScript, /catalogFrame\.setAttribute\("sandbox", "allow-scripts allow-same-origin"\)/u);
-    assert.match(mainScript, /event\.source !== catalogFrame\.contentWindow/u);
     assert.match(mainScript, /isTrustedGoogleAppsScriptOrigin\(event\.origin\)/u);
     assert.match(mainScript, /event\.data\?\.nonce !== requestNonce/u);
     assert.match(mainScript, /event\.data\?\.source !== DRIVE_MEDIA_CATALOG_SOURCE/u);
+    assert.match(mainScript, /window\.crypto\.getRandomValues\(values\)/u);
+    assert.doesNotMatch(mainScript, /event\.source !== catalogFrame\.contentWindow/u);
     assert.doesNotMatch(mainScript, /document\.createElement\("script"\)[\s\S]*?catalogUrl/u);
 });
 

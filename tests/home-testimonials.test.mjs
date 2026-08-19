@@ -67,5 +67,5 @@ test("the testimonial list continuously auto-scrolls, pauses for interaction, an
     assert.doesNotMatch(css, /\.home-testimonials\s*\{[\s\S]*?rgba\(3, 13, 33, 0\.97\)/u);
     assert.match(script, /pageJumpLinks\.forEach/u);
     assert.match(html, /static\/css\/main\.css\?v=1\.0\.57/u);
-    assert.match(html, /static\/js\/main\.js\?v=1\.0\.50/u);
+    assert.match(html, /static\/js\/main\.js\?v=1\.0\.51/u);
 });

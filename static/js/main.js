@@ -211,12 +211,9 @@ const isTrustedGoogleAppsScriptOrigin = (origin) => (
 );
 
 const createDriveCatalogNonce = () => {
-    if (window.crypto?.getRandomValues) {
-        const values = new Uint32Array(4);
-        window.crypto.getRandomValues(values);
-        return Array.from(values, (value) => value.toString(36)).join("");
-    }
-    return `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`;
+    const values = new Uint32Array(4);
+    window.crypto.getRandomValues(values);
+    return Array.from(values, (value) => value.toString(36)).join("");
 };
 
 const requestDriveMediaCatalog = () => new Promise((resolve, reject) => {
@@ -242,9 +239,9 @@ const requestDriveMediaCatalog = () => new Promise((resolve, reject) => {
     };
 
     const handleCatalogMessage = (event) => {
+        // Apps Script runs HtmlService output in a nested Google sandbox frame.
+        // Authenticate that inner sender with its Google origin and per-request nonce.
         if (
-            event.source !== catalogFrame.contentWindow
-            ||
             !isTrustedGoogleAppsScriptOrigin(event.origin)
             || event.data?.source !== DRIVE_MEDIA_CATALOG_SOURCE
             || event.data?.nonce !== requestNonce
