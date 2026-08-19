@@ -317,6 +317,12 @@ const getDriveDownloadUrl = (fileId) => (
     + "&export=download&authuser=0&confirm=t"
 );
 
+const getDriveThumbnailUrl = (fileId) => (
+    /^[A-Za-z0-9_-]{10,}$/u.test(String(fileId || ""))
+        ? `https://drive.google.com/thumbnail?id=${encodeURIComponent(fileId)}&sz=w1600`
+        : ""
+);
+
 const syncResumeDownload = (entry) => {
     if (!resumeDownloadLink || !/^[A-Za-z0-9_-]{10,}$/u.test(String(entry?.id || ""))) return;
     resumeDownloadLink.href = getDriveDownloadUrl(entry.id);
@@ -1666,6 +1672,7 @@ const cleanUpVideoDetail = () => {
     videoDetailVideo?.pause();
     if (videoDetailVideo) {
         videoDetailVideo.removeAttribute("src");
+        videoDetailVideo.removeAttribute("poster");
         videoDetailVideo.controls = false;
         videoDetailVideo.muted = true;
         videoDetailVideo.load();
@@ -1779,6 +1786,8 @@ const openVideoDetail = (index = videoActiveIndex, source = videoPosterButtons[i
     videoDetailCategory.textContent = category.name;
     clearVideoOrientation(videoDetail);
     syncVideoOrientation(sourcePreview, videoDetail);
+    videoDetailVideo.crossOrigin = "anonymous";
+    videoDetailVideo.poster = getDriveThumbnailUrl(entry.id);
     videoDetailVideo.src = entry.src;
     videoDetailVideo.controls = true;
     videoDetailVideo.muted = false;
@@ -1864,6 +1873,8 @@ const renderActiveVideoCategory = () => {
 
         const preview = document.createElement("video");
         preview.className = "video-poster__preview";
+        preview.crossOrigin = "anonymous";
+        preview.poster = getDriveThumbnailUrl(entry.id);
         preview.src = entry.src;
         preview.muted = true;
         preview.loop = true;

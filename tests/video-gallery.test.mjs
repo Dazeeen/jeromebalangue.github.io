@@ -66,6 +66,18 @@ test("the page renders one dynamic categorized Video Editing view", async () => 
     assert.match(script, /setVideoGalleryActive/u);
     assert.match(html, /data-video-cinema data-mode="rail"/u);
     assert.match(html, /data-video-detail/u);
+    assert.match(html, /data-video-detail-video[^>]*crossorigin="anonymous"/u);
+    assert.ok(
+        script.indexOf('preview.crossOrigin = "anonymous";') < script.indexOf("preview.src = entry.src;"),
+        "Drive previews must opt into CORS before their source is assigned."
+    );
+    assert.ok(
+        script.indexOf('videoDetailVideo.crossOrigin = "anonymous";')
+            < script.indexOf("videoDetailVideo.src = entry.src;"),
+        "The detail player must opt into CORS before its source is assigned."
+    );
+    assert.match(script, /preview\.poster = getDriveThumbnailUrl\(entry\.id\);/u);
+    assert.match(script, /videoDetailVideo\.poster = getDriveThumbnailUrl\(entry\.id\);/u);
     assert.doesNotMatch(html, /data-video-gallery-open|data-video-detail-gallery|data-video-mosaic/u);
     assert.doesNotMatch(script, /openVideoMosaic|closeVideoMosaic|renderVideoMosaic/u);
     assert.doesNotMatch(html, /class="video-viewer/u);
