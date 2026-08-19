@@ -20,7 +20,7 @@ test("Why Work With Me is a navigable page after Video Editing", () => {
 });
 
 test("the page keeps Jerome, six value bubbles, four tools, and the mission together", () => {
-    assert.match(html, /class="why-portrait__image"[^>]*jerome-laptop-cutout\.png/su);
+    assert.match(html, /class="why-portrait__image"[^>]*id=10BJZLxjdvVAzFq2gq89UAthh-DQgezRo/su);
     assert.match(
         html,
         /<div class="why-portrait__blob">[\s\S]*?<img class="why-portrait__image"[\s\S]*?<\/div>/u,
@@ -55,7 +55,7 @@ test("the liquid portrait, bubbles, tools, and particles have responsive motion"
         /\.why-portrait__image\s*\{[^}]*left:\s*55%;[^}]*width:\s*88%;/su
     );
     assert.match(stylesheet, /\.why-section__title\s*\{[^}]*font-size:\s*clamp\(2\.35rem, 4vw, 4\.1rem\);/su);
-    assert.match(stylesheet, /url\("\.\.\/media\/images\/site\/portfolio-background\.png"\)/u);
+    assert.match(stylesheet, /url\("https:\/\/drive\.google\.com\/thumbnail\?id=/u);
     assert.match(stylesheet, /@media \(max-width: 720px\)[\s\S]*\.why-stage\s*\{/u);
     assert.match(stylesheet, /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.why-portrait__blob/u);
 });

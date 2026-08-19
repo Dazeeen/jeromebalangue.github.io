@@ -8,120 +8,65 @@ Static portfolio website prepared for GitHub Pages.
 index.html                  Main page markup
 static/
   css/
-    main.css                Site styles and local font declarations
+    main.css                Site styles and Drive-backed visual URLs
   js/
     head.js                 Early page setup
-    main.js                 Navigation and animation behavior
+    drive-media-data.js     Verified Drive fallback catalog and endpoint config
+    main.js                 Navigation, animation, and live Drive catalog loader
     print-3d.js             Editable Three.js model source
     print-3d.bundle.js      Local browser-ready 3D bundle
   fonts/
     *.woff2                 Self-hosted font files
     OFL-*.txt               Font licenses
-  media/
-    images/                 Single root for every image asset
-      site/                 Shared backgrounds
-      home/                 Home page images
-      about/                About page images
-      social-media-designs/ Folder-driven Social Media Designs gallery
-        --Category Name--/  Images assigned to this category
-        gallery.json        Generated gallery manifest
-        gallery-data.js     Direct-file-compatible browser data
-      AI_generated_design/  Randomized floating A.I. design gallery
-        gallery.json        Generated A.I. gallery manifest
-        gallery-data.js     Direct-file-compatible A.I. gallery data
-      print-marketing-materials/
-                             Print assets grouped by material
-      source-assets/        Labeled source/reference images
-      archive/              Organized images not shown on the live pages
-    archives/               Non-image source archives
-    videos/                 Folder-driven Video Editing gallery
-      --Category Name--/    Videos assigned to this category
-      gallery.json          Generated video manifest
-      gallery-data.js       Direct-file-compatible video data
   vendor/
     three/                  Local Three.js library and license
+integrations/
+  google-apps-script/
+    drive-media-catalog/    Read-only Drive folder scanner used by the galleries
 ```
 
-The site does not depend on Bootstrap, jQuery, a CDN, or remote JavaScript.
-Google Fonts were downloaded and are served locally from `static/fonts`.
+The site does not depend on Bootstrap, jQuery, or a JavaScript CDN. Google Fonts
+are downloaded and served locally from `static/fonts`; portfolio images and
+videos are served by Jerome's public Google Drive media folder.
 
-## Social Media Designs categories
+## Google Drive media library
 
-The Social Media Designs page builds its filters and carousel from folders inside
-`static/media/images/social-media-designs`. Category folders must use this exact pattern:
+The organized media source is `Website Portfolio/Media` in Jerome's Google Drive:
+
+```text
+Media/
+  images/
+    social-media-designs/
+      --Category Name--/
+    AI_generated_design/
+    ...all other site image folders
+  videos/
+    --Category Name--/
+  archives/
+```
+
+The Social Media Designs and Video Editing sections keep the same folder convention:
 
 ```text
 --Category Name--
 ```
 
-For example, adding images to `--Brand Identity--` creates a **Brand Identity**
-filter and places those images in that category. Supported image types are AVIF,
-GIF, JPEG, PNG, SVG, and WebP. Empty category folders are not displayed.
+For example, creating `--Brand Identity--` under `social-media-designs` and adding
+images automatically creates the **Brand Identity** filter on the site. The same
+rule applies to video category folders. Empty category folders are hidden. Files
+added to `AI_generated_design` automatically join both the organized AI gallery
+and its randomized floating cards.
 
-After changing the folders locally, regenerate the static manifest:
+`integrations/google-apps-script/drive-media-catalog/` exposes a read-only JSONP
+catalog for GitHub Pages. The browser displays the bundled verified Drive snapshot
+immediately, then replaces it with the current folder scan when the catalog loads.
+The live catalog is cached for only 60 seconds, so folder and media changes normally
+appear within about a minute without editing the repository or regenerating files.
 
-```powershell
-node scripts/generate-social-gallery.mjs
-```
-
-Both generated files are required. `gallery-data.js` lets the gallery work when
-`index.html` is opened directly from the filesystem, while `gallery.json` remains
-the hosted fallback.
-
-Pushing a category-folder or image change to `main` also runs
-`.github/workflows/sync-social-gallery.yml`, which regenerates and commits the
-manifest automatically. The HTML and JavaScript do not need to be edited when a
-category or image is added.
-
-## A.I. Generated Design gallery
-
-The A.I. Generated Design page is driven by every supported image file in
-`static/media/images/AI_generated_design`. No HTML or JavaScript edit is needed
-when an image is added, renamed, or removed.
-
-For automatic updates while editing the folder locally, keep this watcher running:
-
-```powershell
-node scripts/generate-ai-gallery.mjs --watch
-```
-
-It performs an initial sync, then regenerates `gallery.json` and `gallery-data.js`
-after every add, rename, or removal. A one-time sync remains available through
-`node scripts/generate-ai-gallery.mjs`.
-
-Pushing an AI image change to `main` runs `.github/workflows/sync-social-gallery.yml`,
-which also regenerates and commits both files automatically for the deployed site.
-The organized gallery and the hero's shuffled floating cards use the same generated
-image list. `gallery-data.js` keeps direct `file://` previews compatible, while
-`gallery.json` remains the hosted fallback.
-
-## Video Editing categories
-
-The Video Editing page combines App Promotional Video, Trend Editing, and Editing
-Project in one cinematic category experience: a focusable poster rail expands into an
-inline feature view. Its categories and videos are generated from folders inside
-`static/media/videos`. Category folders use the same exact pattern:
-
-```text
---Category Name--
-```
-
-The folder name becomes the category label, and the video filename becomes the card
-title. Supported browser video files are M4V, MP4, OGG/OGV, and WebM. Empty category
-folders are not displayed.
-
-For automatic updates while adding or renaming videos locally, keep this watcher
-running:
-
-```powershell
-node scripts/generate-video-gallery.mjs --watch
-```
-
-A one-time generation is also available through
-`node scripts/generate-video-gallery.mjs`. Pushing a category-folder or video change
-to `main` runs `.github/workflows/sync-social-gallery.yml`, which regenerates and
-commits `gallery.json` and `gallery-data.js`. The browser data file keeps direct
-`file://` previews working without requiring a local server.
+Media files and the `Media` folder must retain **Anyone with the link - Viewer**
+access. Do not rename the root `images`, `videos`, `social-media-designs`, or
+`AI_generated_design` folders; category folders and their media can be freely added,
+renamed, or removed using the `--Category Name--` format.
 
 ## Why Work With Me
 

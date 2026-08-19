@@ -1,80 +1,47 @@
 import assert from "node:assert/strict";
-import { readdir, readFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
+import vm from "node:vm";
 import { fileURLToPath } from "node:url";
 
 const testDirectory = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(testDirectory, "..");
-const galleryRoot = path.join(projectRoot, "static", "media", "videos");
-const manifestPath = path.join(galleryRoot, "gallery.json");
-const manifestScriptPath = path.join(galleryRoot, "gallery-data.js");
 const categoryPattern = /^--(.+?)--$/u;
-const videoPattern = /\.(?:m4v|mp4|ogg|ogv|webm)$/iu;
+const driveData = await readFile(
+    path.join(projectRoot, "static", "js", "drive-media-data.js"),
+    "utf8"
+);
+const sandbox = { window: {} };
+vm.runInNewContext(driveData, sandbox);
+const manifest = sandbox.window.DRIVE_MEDIA_FALLBACK.galleries.video;
 
-const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
-
-test("every video category folder follows the naming contract", async () => {
-    const folders = (await readdir(galleryRoot, { withFileTypes: true }))
-        .filter((entry) => entry.isDirectory());
-
-    assert.ok(folders.length > 0);
-    folders.forEach((folder) => assert.match(folder.name, categoryPattern));
-});
-
-test("the video manifest matches every supported video on disk", async () => {
-    const manifestFiles = new Set();
-
+test("the Drive fallback keeps every video category and file", () => {
+    assert.ok(manifest.categories.length > 0);
+    let videoCount = 0;
     for (const category of manifest.categories) {
         assert.match(category.folder, categoryPattern);
         assert.ok(category.videos.length > 0);
-
         for (const video of category.videos) {
-            assert.match(video.file, videoPattern);
+            assert.match(video.src, /^https:\/\/drive\.usercontent\.google\.com\/download\?id=/u);
+            assert.match(video.mimeType, /^video\//u);
+            assert.ok(video.id);
             assert.ok(video.title.trim());
-            const relativePath = path.join(category.folder, video.file);
-            manifestFiles.add(relativePath);
-            await assert.doesNotReject(() => readFile(path.join(galleryRoot, relativePath)));
+            videoCount += 1;
         }
     }
-
-    const diskFiles = new Set();
-    const folders = (await readdir(galleryRoot, { withFileTypes: true }))
-        .filter((entry) => entry.isDirectory());
-    for (const folder of folders) {
-        const files = (await readdir(path.join(galleryRoot, folder.name), { withFileTypes: true }))
-            .filter((entry) => entry.isFile() && videoPattern.test(entry.name));
-        files.forEach((file) => diskFiles.add(path.join(folder.name, file.name)));
-    }
-
-    assert.deepEqual(manifestFiles, diskFiles);
-    assert.equal(manifest.videoCount, diskFiles.size);
+    assert.equal(manifest.videoCount, videoCount);
 });
 
-test("the direct-file video data script matches the JSON manifest", async () => {
-    const manifestScript = await readFile(manifestScriptPath, "utf8");
-    const serializedData = manifestScript
-        .replace(/^window\.VIDEO_GALLERY_MANIFEST\s*=\s*/u, "")
-        .replace(/;\s*$/u, "");
-
-    assert.deepEqual(JSON.parse(serializedData), manifest);
-});
-
-test("video additions are wired to local and deployed automatic manifest sync", async () => {
-    const generator = await readFile(
-        path.join(projectRoot, "scripts", "generate-video-gallery.mjs"),
-        "utf8"
-    );
-    const workflow = await readFile(
-        path.join(projectRoot, ".github", "workflows", "sync-social-gallery.yml"),
+test("video additions are wired to the live Drive folder catalog", async () => {
+    const catalog = await readFile(
+        path.join(projectRoot, "integrations", "google-apps-script", "drive-media-catalog", "Code.gs"),
         "utf8"
     );
 
-    assert.match(generator, /process\.argv\.includes\("--watch"\)/u);
-    assert.match(generator, /watch\(galleryRoot, \{ recursive: true \}\)/u);
-    assert.match(workflow, /static\/media\/videos\/\*\*/u);
-    assert.match(workflow, /node scripts\/generate-video-gallery\.mjs/u);
-    assert.match(workflow, /static\/media\/videos\/gallery-data\.js/u);
+    assert.match(catalog, /requireChildFolder_\(mediaFolder, "videos"\)/u);
+    assert.match(catalog, /buildCategorizedGallery_\(videosFolder, "videos"\)/u);
+    assert.match(catalog, /categoryFolderPattern:\s*\/\^--\(\.\+\?\)--\$\//u);
 });
 
 test("the page renders one dynamic categorized Video Editing view", async () => {
@@ -85,14 +52,14 @@ test("the page renders one dynamic categorized Video Editing view", async () => 
     assert.match(html, /id="video-editing"/u);
     assert.match(html, /data-video-categories/u);
     assert.match(html, /data-video-gallery/u);
-    assert.match(html, /videos\/gallery-data\.js/u);
+    assert.match(html, /static\/js\/drive-media-data\.js/u);
     assert.doesNotMatch(html, /id="trend-editing"|id="editing-project"/u);
     assert.ok(
-        html.indexOf("videos/gallery-data.js") < html.indexOf("static/js/main.js"),
-        "Video gallery data must load before the main script."
+        html.indexOf("drive-media-data.js") < html.indexOf("static/js/main.js"),
+        "Drive gallery fallback data must load before the main script."
     );
-    assert.match(script, /VIDEO_GALLERY_MANIFEST_URL/u);
-    assert.match(script, /window\.VIDEO_GALLERY_MANIFEST/u);
+    assert.match(script, /loadDriveMediaCatalog/u);
+    assert.match(script, /getFallbackDriveGallery\("video", "VIDEO_GALLERY_MANIFEST"\)/u);
     assert.match(script, /renderVideoGallery/u);
     assert.match(script, /openVideoDetail/u);
     assert.match(script, /setVideoMode/u);
@@ -157,7 +124,7 @@ test("Video Editing uses the curtain, ignores rail wheel selection, and unmutes 
 
     assert.match(
         stylesheet,
-        /\.video-cinema\s*\{[^}]*portfolio-background\.png[^}]*background-size:\s*cover;/su
+        /\.video-cinema\s*\{[^}]*drive\.google\.com\/thumbnail[^}]*background-size:\s*cover;/su
     );
     assert.doesNotMatch(script, /videoStage\?\.addEventListener\("wheel"|videoRailWheelDelta|videoRailWheelTimer/u);
     assert.doesNotMatch(html, /data-video-detail-video[^>]*\bmuted\b/u);

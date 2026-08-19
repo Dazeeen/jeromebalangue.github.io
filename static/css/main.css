@@ -498,7 +498,7 @@ body {
     overflow-y: auto;
     overscroll-behavior-y: contain;
     background-color: #020306;
-    background-image: url("../media/images/site/portfolio-background.png");
+    background-image: url("https://drive.google.com/thumbnail?id=1Ot_dZXQnqWO_bNbGQE6gdhXietuIP2UV&sz=w4096");
     background-position: center;
     background-size: cover;
     scrollbar-color: rgba(130, 171, 237, 0.5) transparent;
@@ -681,7 +681,7 @@ body {
     border-top: 1px solid rgba(135, 178, 247, 0.2);
     background:
         linear-gradient(135deg, rgba(3, 13, 33, 0.97), rgba(7, 31, 74, 0.95)),
-        url("../media/images/site/portfolio-background.png") center / cover no-repeat;
+        url("https://drive.google.com/thumbnail?id=1Ot_dZXQnqWO_bNbGQE6gdhXietuIP2UV&sz=w4096") center / cover no-repeat;
 }
 
 .home-testimonials::before {
@@ -1175,7 +1175,7 @@ body {
     overflow: hidden;
     border-bottom: 1px solid rgba(255, 255, 255, 0.82);
     background-color: #020306;
-    background-image: url("../media/images/site/portfolio-background.png");
+    background-image: url("https://drive.google.com/thumbnail?id=1Ot_dZXQnqWO_bNbGQE6gdhXietuIP2UV&sz=w4096");
     background-position: center;
     background-size: cover;
     scroll-margin-top: 0;
@@ -1309,7 +1309,7 @@ body {
     background-image:
         linear-gradient(90deg, rgba(2, 3, 6, 0.52), rgba(2, 3, 6, 0.08) 54%, rgba(2, 3, 6, 0.36)),
         radial-gradient(circle at 50% 46%, rgba(41, 78, 134, 0.18), transparent 48%),
-        url("../media/images/site/portfolio-background.png");
+        url("https://drive.google.com/thumbnail?id=1Ot_dZXQnqWO_bNbGQE6gdhXietuIP2UV&sz=w4096");
     background-attachment: fixed;
     background-position: center;
     background-repeat: no-repeat;
@@ -1744,7 +1744,7 @@ body {
         linear-gradient(180deg, rgba(2, 3, 6, 0.03), rgba(2, 3, 6, 0.18)),
         radial-gradient(circle at 50% 53%, rgba(74, 127, 207, 0.18), transparent 44%),
         linear-gradient(90deg, rgba(2, 3, 6, 0.46), rgba(2, 3, 6, 0.02) 54%, rgba(2, 3, 6, 0.24)),
-        url("../media/images/site/portfolio-background.png");
+        url("https://drive.google.com/thumbnail?id=1Ot_dZXQnqWO_bNbGQE6gdhXietuIP2UV&sz=w4096");
     background-attachment: fixed;
     background-position: center;
     background-repeat: no-repeat;
@@ -2186,7 +2186,7 @@ body {
         linear-gradient(180deg, rgba(2, 3, 6, 0.04), rgba(2, 3, 6, 0.18)),
         radial-gradient(circle at 53% 56%, rgba(75, 132, 215, 0.2), transparent 43%),
         linear-gradient(90deg, rgba(2, 3, 6, 0.5), rgba(2, 3, 6, 0.02) 56%, rgba(2, 3, 6, 0.22)),
-        url("../media/images/site/portfolio-background.png");
+        url("https://drive.google.com/thumbnail?id=1Ot_dZXQnqWO_bNbGQE6gdhXietuIP2UV&sz=w4096");
     background-attachment: fixed;
     background-position: center;
     background-repeat: no-repeat;
@@ -2662,7 +2662,7 @@ body {
         linear-gradient(180deg, rgba(2, 3, 6, 0.03), rgba(2, 3, 6, 0.24)),
         radial-gradient(circle at 50% 48%, rgba(50, 98, 168, 0.18), transparent 48%),
         linear-gradient(90deg, rgba(2, 3, 6, 0.52), rgba(2, 3, 6, 0.02) 52%, rgba(2, 3, 6, 0.34)),
-        url("../media/images/site/portfolio-background.png");
+        url("https://drive.google.com/thumbnail?id=1Ot_dZXQnqWO_bNbGQE6gdhXietuIP2UV&sz=w4096");
     background-attachment: fixed;
     background-position: center;
     background-repeat: no-repeat;
@@ -3430,7 +3430,7 @@ body {
     border-radius: clamp(1rem, 2vw, 1.5rem);
     background:
         linear-gradient(145deg, rgba(10, 19, 34, 0.88), rgba(1, 4, 10, 0.94)),
-        url("../media/images/site/portfolio-background.png") center / cover;
+        url("https://drive.google.com/thumbnail?id=1Ot_dZXQnqWO_bNbGQE6gdhXietuIP2UV&sz=w4096") center / cover;
     box-shadow:
         0 2rem 7rem rgba(0, 0, 0, 0.72),
         inset 0 1px 0 rgba(255, 255, 255, 0.07);
@@ -5020,7 +5020,7 @@ body {
     overflow-y: auto;
     background:
         linear-gradient(100deg, rgba(0, 0, 0, 0.98), rgba(1, 5, 14, 0.94) 48%, rgba(7, 27, 72, 0.86)),
-        url("../media/images/site/portfolio-background.png") center / cover;
+        url("https://drive.google.com/thumbnail?id=1Ot_dZXQnqWO_bNbGQE6gdhXietuIP2UV&sz=w4096") center / cover;
 }
 
 .video-section::before {
@@ -5654,7 +5654,7 @@ body.video-viewer-open {
     background-color: #02050c;
     background-image:
         linear-gradient(90deg, rgba(1, 4, 10, 0.38), rgba(2, 5, 13, 0.08) 52%, rgba(4, 15, 37, 0.14)),
-        url("../media/images/site/portfolio-background.png");
+        url("https://drive.google.com/thumbnail?id=1Ot_dZXQnqWO_bNbGQE6gdhXietuIP2UV&sz=w4096");
     background-position: center;
     background-repeat: no-repeat;
     background-size: cover;
@@ -5677,7 +5677,7 @@ body.video-viewer-open {
     background-image:
         radial-gradient(circle at 55% 45%, rgba(70, 119, 213, 0.16), transparent 42%),
         linear-gradient(90deg, rgba(0, 0, 0, 0.3), transparent 52%, rgba(10, 37, 89, 0.12)),
-        url("../media/images/site/portfolio-background.png");
+        url("https://drive.google.com/thumbnail?id=1Ot_dZXQnqWO_bNbGQE6gdhXietuIP2UV&sz=w4096");
     background-position: center;
     background-repeat: no-repeat;
     background-size: cover;
@@ -6356,7 +6356,7 @@ body.video-viewer-open {
         linear-gradient(90deg, rgba(1, 4, 10, 0.36), rgba(2, 5, 13, 0.06) 52%, rgba(4, 15, 37, 0.12)),
         radial-gradient(circle at 50% 42%, rgba(48, 101, 214, 0.22), transparent 34%),
         radial-gradient(circle at 12% 84%, rgba(110, 163, 255, 0.12), transparent 28%),
-        url("../media/images/site/portfolio-background.png");
+        url("https://drive.google.com/thumbnail?id=1Ot_dZXQnqWO_bNbGQE6gdhXietuIP2UV&sz=w4096");
     background-position: center;
     background-repeat: no-repeat;
     background-size: cover;
@@ -7072,7 +7072,7 @@ body.video-viewer-open {
             transparent calc(10vw - 1px),
             rgba(255, 255, 255, 0.045) 10vw
         ),
-        url("../media/images/site/portfolio-background.png") center / cover no-repeat,
+        url("https://drive.google.com/thumbnail?id=1Ot_dZXQnqWO_bNbGQE6gdhXietuIP2UV&sz=w4096") center / cover no-repeat,
         #02050c;
 }
 
@@ -8068,7 +8068,7 @@ body.video-viewer-open {
     background:
         linear-gradient(90deg, rgba(1, 5, 15, 0.9), rgba(4, 21, 56, 0.68) 52%, rgba(8, 38, 94, 0.5)),
         radial-gradient(circle at 83% 18%, rgba(121, 168, 255, 0.22), transparent 32%),
-        url("../media/images/site/portfolio-background.png") center / cover no-repeat,
+        url("https://drive.google.com/thumbnail?id=1Ot_dZXQnqWO_bNbGQE6gdhXietuIP2UV&sz=w4096") center / cover no-repeat,
         #020713;
     scrollbar-width: none;
 }

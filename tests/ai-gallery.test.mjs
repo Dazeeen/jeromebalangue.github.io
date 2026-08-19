@@ -1,68 +1,42 @@
 import assert from "node:assert/strict";
-import { readdir, readFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
+import vm from "node:vm";
 import { fileURLToPath } from "node:url";
 
 const testDirectory = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(testDirectory, "..");
-const galleryRoot = path.join(
-    projectRoot,
-    "static",
-    "media",
-    "images",
-    "AI_generated_design"
+const driveData = await readFile(
+    path.join(projectRoot, "static", "js", "drive-media-data.js"),
+    "utf8"
 );
-const manifestPath = path.join(galleryRoot, "gallery.json");
-const manifestScriptPath = path.join(galleryRoot, "gallery-data.js");
-const imagePattern = /\.(?:avif|gif|jpe?g|png|svg|webp)$/iu;
+const sandbox = { window: {} };
+vm.runInNewContext(driveData, sandbox);
+const manifest = sandbox.window.DRIVE_MEDIA_FALLBACK.galleries.ai;
 
-const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
-
-test("the AI manifest matches every image in AI_generated_design", async () => {
-    const diskFiles = (await readdir(galleryRoot, { withFileTypes: true }))
-        .filter((entry) => entry.isFile() && imagePattern.test(entry.name))
-        .map((entry) => entry.name)
-        .sort();
-    const manifestFiles = manifest.images.map((image) => image.file).sort();
-
-    assert.ok(diskFiles.length >= 5);
-    assert.deepEqual(manifestFiles, diskFiles);
-    assert.equal(manifest.imageCount, diskFiles.length);
+test("the Drive fallback catalogs every AI-generated image", () => {
+    assert.ok(manifest.images.length >= 5);
+    assert.equal(manifest.imageCount, manifest.images.length);
     for (const image of manifest.images) {
-        assert.match(image.src, /^static\/media\/images\/AI_generated_design\//u);
+        assert.match(image.src, /^https:\/\/drive\.google\.com\/thumbnail\?id=/u);
+        assert.match(image.mimeType, /^image\//u);
+        assert.ok(image.id);
         assert.ok(image.alt);
-        assert.ok(Number.isInteger(image.width) && image.width > 0);
-        assert.ok(Number.isInteger(image.height) && image.height > 0);
-        await assert.doesNotReject(() => readFile(path.join(galleryRoot, image.file)));
     }
 });
 
-test("the direct-file AI data script matches the JSON manifest", async () => {
-    const manifestScript = await readFile(manifestScriptPath, "utf8");
-    const serializedData = manifestScript
-        .replace(/^window\.AI_GALLERY_MANIFEST\s*=\s*/u, "")
-        .replace(/;\s*$/u, "");
-
-    assert.deepEqual(JSON.parse(serializedData), manifest);
-});
-
-test("AI image additions and removals are wired to automatic manifest sync", async () => {
-    const generator = await readFile(
-        path.join(projectRoot, "scripts", "generate-ai-gallery.mjs"),
+test("AI Drive additions and removals are wired to the live folder catalog", async () => {
+    const catalog = await readFile(
+        path.join(projectRoot, "integrations", "google-apps-script", "drive-media-catalog", "Code.gs"),
         "utf8"
     );
-    const workflow = await readFile(
-        path.join(projectRoot, ".github", "workflows", "sync-social-gallery.yml"),
-        "utf8"
-    );
+    const script = await readFile(path.join(projectRoot, "static", "js", "main.js"), "utf8");
 
-    assert.match(generator, /process\.argv\.includes\("--watch"\)/u);
-    assert.match(generator, /watch\(galleryRoot, \{ persistent: true \}/u);
-    assert.match(generator, /\.then\(writeManifest\)/u);
-    assert.match(workflow, /static\/media\/images\/AI_generated_design\/\*\*/u);
-    assert.match(workflow, /node scripts\/generate-ai-gallery\.mjs/u);
-    assert.match(workflow, /static\/media\/images\/AI_generated_design\/gallery-data\.js/u);
+    assert.match(catalog, /requireChildFolder_\(imagesFolder, "AI_generated_design"\)/u);
+    assert.match(catalog, /buildAiGallery_\(aiFolder\)/u);
+    assert.match(catalog, /catalogCacheSeconds:\s*60/u);
+    assert.match(script, /loadDriveMediaCatalog/u);
 });
 
 test("the AI page renders a dimension-aware gallery beneath its hero", async () => {
@@ -75,12 +49,13 @@ test("the AI page renders a dimension-aware gallery beneath its hero", async () 
     assert.match(html, /data-ai-ambient/u);
     assert.match(html, /class="ai-gallery-section"/u);
     assert.match(html, /data-ai-gallery/u);
-    assert.match(html, /AI_generated_design\/gallery-data\.js/u);
+    assert.match(html, /static\/js\/drive-media-data\.js/u);
     assert.ok(
-        html.indexOf("AI_generated_design/gallery-data.js") < html.indexOf("static/js/main.js"),
-        "AI gallery data must load before the main script."
+        html.indexOf("drive-media-data.js") < html.indexOf("static/js/main.js"),
+        "Drive gallery fallback data must load before the main script."
     );
-    assert.match(script, /window\.AI_GALLERY_MANIFEST/u);
+    assert.match(script, /loadDriveMediaCatalog/u);
+    assert.match(script, /getFallbackDriveGallery\("ai", "AI_GALLERY_MANIFEST"\)/u);
     assert.match(script, /getAIAspectRatio/u);
     assert.match(script, /syncAIGalleryLayout/u);
     assert.match(script, /card\.style\.flexBasis/u);
@@ -120,7 +95,7 @@ test("the AI page renders a dimension-aware gallery beneath its hero", async () 
     assert.match(stylesheet, /\.ai-section\s*\{[^}]*overflow-y:\s*auto;/su);
     assert.match(
         stylesheet,
-        /\.ai-section\s*\{[^}]*portfolio-background\.png[^}]*background-attachment:\s*fixed;/su
+        /\.ai-section\s*\{[^}]*drive\.google\.com\/thumbnail[^}]*background-attachment:\s*fixed;/su
     );
     assert.match(stylesheet, /\.ai-section__hero\s*\{[^}]*height:\s*100svh;/su);
     assert.match(stylesheet, /\.ai-section__hero\s*\{[^}]*background:\s*transparent;/su);

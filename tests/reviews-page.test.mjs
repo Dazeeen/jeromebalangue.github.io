@@ -74,7 +74,7 @@ test("review submission uses the existing secure iframe and lower-right toast fl
 });
 
 test("the review layout adopts the blue-curtain theme and is responsive", () => {
-    assert.match(css, /\.reviews-section\s*\{[\s\S]*?portfolio-background\.png/u);
+    assert.match(css, /\.reviews-section\s*\{[\s\S]*?drive\.google\.com\/thumbnail/u);
     assert.match(css, /\.reviews-section__shell\s*\{[\s\S]*?grid-template-columns/u);
     assert.match(css, /\.review-form-card\s*\{[\s\S]*?background: rgba\(248, 250, 254, 0\.97\)/u);
     assert.match(css, /\.review-form__stars input:checked ~ label/u);
@@ -83,6 +83,6 @@ test("the review layout adopts the blue-curtain theme and is responsive", () => 
     assert.match(css, /\.review-form__stars label\s*\{[\s\S]*?font-size: clamp\(1\.9rem, 2\.5vw, 2\.35rem\);/u);
     assert.match(css, /\.review-form__field input,[\s\S]*?font-size: clamp\(0\.76rem, 0\.9vw, 0\.84rem\);/u);
     assert.match(css, /@media \(max-width: 780px\)[\s\S]*?\.reviews-section__shell/u);
-    assert.match(html, /static\/css\/main\.css\?v=1\.0\.55/u);
-    assert.match(html, /static\/js\/main\.js\?v=1\.0\.47/u);
+    assert.match(html, /static\/css\/main\.css\?v=1\.0\.56/u);
+    assert.match(html, /static\/js\/main\.js\?v=1\.0\.48/u);
 });

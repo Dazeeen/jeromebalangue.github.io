@@ -1,65 +1,38 @@
 import assert from "node:assert/strict";
-import { readdir, readFile } from "node:fs/promises";
+import { access, readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
+import vm from "node:vm";
 import { fileURLToPath } from "node:url";
 
 const testDirectory = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(testDirectory, "..");
 const mediaRoot = path.join(projectRoot, "static", "media");
-const imagesRoot = path.join(mediaRoot, "images");
-const imagePattern = /\.(?:avif|gif|jpe?g|png|svg|webp)$/iu;
-const labeledFilenamePattern = /^[a-z0-9]+(?:-[a-z0-9]+)*\.(?:avif|gif|jpe?g|png|svg|webp)$/u;
 
-const walkFiles = async (directory) => {
-    const files = [];
-    for (const entry of await readdir(directory, { withFileTypes: true })) {
-        const entryPath = path.join(directory, entry.name);
-        if (entry.isDirectory()) files.push(...await walkFiles(entryPath));
-        if (entry.isFile()) files.push(entryPath);
-    }
-    return files;
-};
-
-test("every image asset lives under static/media/images", async () => {
-    const imageFiles = (await walkFiles(mediaRoot)).filter((file) => imagePattern.test(file));
-
-    assert.ok(imageFiles.length > 0);
-    imageFiles.forEach((file) => {
-        assert.ok(
-            file.startsWith(`${imagesRoot}${path.sep}`),
-            `Image is outside the images root: ${path.relative(projectRoot, file)}`
-        );
-    });
+test("the migrated local media tree is removed from the deployable site", async () => {
+    await assert.rejects(() => access(mediaRoot));
 });
 
-test("image filenames are readable kebab-case labels", async () => {
-    const imageFiles = (await walkFiles(imagesRoot)).filter((file) => imagePattern.test(file));
-
-    imageFiles.forEach((file) => {
-        assert.match(
-            path.basename(file),
-            labeledFilenamePattern,
-            `Unlabeled image filename: ${path.relative(imagesRoot, file)}`
-        );
-    });
-});
-
-test("every image path referenced by the page and stylesheet exists", async () => {
+test("the active page and stylesheet use Drive image URLs from the bundled catalog", async () => {
     const sources = [
         await readFile(path.join(projectRoot, "index.html"), "utf8"),
-        await readFile(path.join(projectRoot, "static", "css", "main.css"), "utf8")
+        await readFile(path.join(projectRoot, "static", "css", "main.css"), "utf8"),
+        await readFile(path.join(projectRoot, "review-moderation.html"), "utf8")
     ];
-    const references = sources
-        .flatMap((source) => [...source.matchAll(/(?:static\/media\/images|\.\.\/media\/images)\/[^"')\s]+/gu)])
-        .map((match) => match[0].replace(/^\.\.\/media/gu, "static/media"))
-        .map((reference) => decodeURIComponent(reference.split("?")[0]));
+    const driveData = await readFile(
+        path.join(projectRoot, "static", "js", "drive-media-data.js"),
+        "utf8"
+    );
+    const sandbox = { window: {} };
+    vm.runInNewContext(driveData, sandbox);
+    const assetIds = new Set(Object.values(sandbox.window.DRIVE_MEDIA_FALLBACK.assets)
+        .filter((asset) => asset.mimeType.startsWith("image/"))
+        .map((asset) => asset.id));
+    const activeSource = sources.join("\n");
+    const referencedIds = [...activeSource.matchAll(/drive\.google\.com\/thumbnail\?id=([A-Za-z0-9_-]+)/gu)]
+        .map((match) => match[1]);
 
-    assert.ok(references.length > 0);
-    for (const reference of new Set(references)) {
-        await assert.doesNotReject(
-            () => readFile(path.join(projectRoot, ...reference.split("/"))),
-            `Missing referenced image: ${reference}`
-        );
-    }
+    assert.doesNotMatch(activeSource, /(?:static\/media\/images|\.\.\/media\/images)\//u);
+    assert.ok(referencedIds.length > 0);
+    referencedIds.forEach((id) => assert.ok(assetIds.has(id), `Uncatalogued Drive image id: ${id}`));
 });

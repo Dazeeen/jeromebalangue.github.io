@@ -197,10 +197,74 @@ const PAGE_NAVIGATION_LOCK_MS = 650;
 const EDUCATION_EXIT_GESTURE_PAUSE_MS = 220;
 const EDUCATION_REVEAL_POINT = 0.68;
 const SOCIAL_DRAG_INTENT_THRESHOLD = 7;
-const SOCIAL_GALLERY_MANIFEST_URL = "static/media/images/social-media-designs/gallery.json";
-const AI_GALLERY_MANIFEST_URL = "static/media/images/AI_generated_design/gallery.json";
-const VIDEO_GALLERY_MANIFEST_URL = "static/media/videos/gallery.json";
+const DRIVE_MEDIA_SETTINGS = window.DRIVE_MEDIA_CONFIG || {};
+let driveMediaCatalogPromise = null;
 const AI_FLOAT_FADE_MS = 760;
+
+const loadDriveMediaCatalog = () => {
+    if (driveMediaCatalogPromise) return driveMediaCatalogPromise;
+    if (typeof DRIVE_MEDIA_SETTINGS.catalogUrl !== "string" || !DRIVE_MEDIA_SETTINGS.catalogUrl) {
+        driveMediaCatalogPromise = Promise.resolve(null);
+        return driveMediaCatalogPromise;
+    }
+
+    driveMediaCatalogPromise = new Promise((resolve, reject) => {
+        const callbackName = `__jeromeDriveMediaCatalog_${Date.now()}_${Math.random()
+            .toString(36)
+            .slice(2)}`;
+        const catalogScript = document.createElement("script");
+        const timeoutMs = Number(DRIVE_MEDIA_SETTINGS.catalogTimeoutMs) || 8000;
+        const cacheBucketMs = Number(DRIVE_MEDIA_SETTINGS.cacheBucketMs) || 60000;
+        const separator = DRIVE_MEDIA_SETTINGS.catalogUrl.includes("?") ? "&" : "?";
+        let settled = false;
+
+        const cleanup = () => {
+            window.clearTimeout(timeoutId);
+            catalogScript.remove();
+            try {
+                delete window[callbackName];
+            } catch {
+                window[callbackName] = undefined;
+            }
+        };
+        const finish = (catalog, error) => {
+            if (settled) return;
+            settled = true;
+            cleanup();
+            if (error) reject(error);
+            else resolve(catalog);
+        };
+
+        window[callbackName] = (catalog) => {
+            if (!catalog?.ok || !catalog?.galleries) {
+                finish(null, new Error(catalog?.message || "Drive media catalog is unavailable."));
+                return;
+            }
+            window.DRIVE_MEDIA_CATALOG = catalog;
+            finish(catalog);
+        };
+        catalogScript.async = true;
+        catalogScript.onerror = () => finish(null, new Error("Drive media catalog request failed."));
+        catalogScript.src = `${DRIVE_MEDIA_SETTINGS.catalogUrl}${separator}`
+            + `callback=${encodeURIComponent(callbackName)}`
+            + `&v=${Math.floor(Date.now() / cacheBucketMs)}`;
+        const timeoutId = window.setTimeout(() => {
+            finish(null, new Error("Drive media catalog request timed out."));
+        }, timeoutMs);
+        document.head.append(catalogScript);
+    }).catch((error) => {
+        console.warn("Live Google Drive media catalog could not be loaded; using the bundled fallback.", error);
+        return null;
+    });
+
+    return driveMediaCatalogPromise;
+};
+
+const getFallbackDriveGallery = (galleryName, legacyGlobalName) => (
+    window.DRIVE_MEDIA_FALLBACK?.galleries?.[galleryName]
+    || window[legacyGlobalName]
+    || null
+);
 
 if (printViewerCanvas) {
     try {
@@ -1453,19 +1517,23 @@ const renderAIGallery = (manifest) => {
 };
 
 const loadAIGallery = async () => {
+    let galleryRendered = false;
     try {
-        if (window.AI_GALLERY_MANIFEST) {
-            renderAIGallery(window.AI_GALLERY_MANIFEST);
-            return;
+        const fallbackManifest = getFallbackDriveGallery("ai", "AI_GALLERY_MANIFEST");
+        if (fallbackManifest) {
+            renderAIGallery(fallbackManifest);
+            galleryRendered = true;
         }
 
-        const response = await fetch(AI_GALLERY_MANIFEST_URL, { cache: "no-cache" });
-        if (!response.ok) {
-            throw new Error(`AI gallery manifest request failed with status ${response.status}.`);
+        const liveManifest = (await loadDriveMediaCatalog())?.galleries?.ai;
+        if (liveManifest) {
+            renderAIGallery(liveManifest);
+            galleryRendered = true;
         }
-        renderAIGallery(await response.json());
+        if (!galleryRendered) throw new Error("No AI gallery manifest is available.");
     } catch (error) {
         console.error("AI generated design gallery could not be loaded.", error);
+        if (galleryRendered) return;
         aiImages = [];
         aiGallery?.setAttribute("aria-busy", "false");
         showAIGalleryStatus("A.I. designs could not be loaded.");
@@ -1861,19 +1929,23 @@ const renderVideoGallery = (manifest) => {
 };
 
 const loadVideoGallery = async () => {
+    let galleryRendered = false;
     try {
-        if (window.VIDEO_GALLERY_MANIFEST) {
-            renderVideoGallery(window.VIDEO_GALLERY_MANIFEST);
-            return;
+        const fallbackManifest = getFallbackDriveGallery("video", "VIDEO_GALLERY_MANIFEST");
+        if (fallbackManifest) {
+            renderVideoGallery(fallbackManifest);
+            galleryRendered = true;
         }
 
-        const response = await fetch(VIDEO_GALLERY_MANIFEST_URL, { cache: "no-cache" });
-        if (!response.ok) {
-            throw new Error(`Video manifest request failed with status ${response.status}.`);
+        const liveManifest = (await loadDriveMediaCatalog())?.galleries?.video;
+        if (liveManifest) {
+            renderVideoGallery(liveManifest);
+            galleryRendered = true;
         }
-        renderVideoGallery(await response.json());
+        if (!galleryRendered) throw new Error("No video gallery manifest is available.");
     } catch (error) {
         console.error("Video gallery could not be loaded.", error);
+        if (galleryRendered) return;
         videoCategories = [];
         videoCategoryButtons = [];
         videoCategoriesNav?.replaceChildren();
@@ -3133,19 +3205,23 @@ const renderSocialGallery = (manifest) => {
 };
 
 const loadSocialGallery = async () => {
+    let galleryRendered = false;
     try {
-        if (window.SOCIAL_GALLERY_MANIFEST) {
-            renderSocialGallery(window.SOCIAL_GALLERY_MANIFEST);
-            return;
+        const fallbackManifest = getFallbackDriveGallery("social", "SOCIAL_GALLERY_MANIFEST");
+        if (fallbackManifest) {
+            renderSocialGallery(fallbackManifest);
+            galleryRendered = true;
         }
 
-        const response = await fetch(SOCIAL_GALLERY_MANIFEST_URL, { cache: "no-cache" });
-        if (!response.ok) {
-            throw new Error(`Gallery manifest request failed with status ${response.status}.`);
+        const liveManifest = (await loadDriveMediaCatalog())?.galleries?.social;
+        if (liveManifest) {
+            renderSocialGallery(liveManifest);
+            galleryRendered = true;
         }
-        renderSocialGallery(await response.json());
+        if (!galleryRendered) throw new Error("No social gallery manifest is available.");
     } catch (error) {
         console.error("Social media gallery could not be loaded.", error);
+        if (galleryRendered) return;
         socialSlides = [];
         socialFilterButtons = [];
         socialFilters.replaceChildren();

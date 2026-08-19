@@ -61,11 +61,11 @@ test("the Apps Script mailer produces branded HTML and a plain-text fallback", (
 });
 
 test("the HTML email carries the portfolio blue-curtain theme", () => {
-    assert.match(backend, /curtainImageUrl: "https:\/\/jeromebalangue\.github\.io\/static\/media\/images\/site\/portfolio-background\.png"/u);
+    assert.match(backend, /curtainImageUrl: "https:\/\/drive\.google\.com\/thumbnail\?id=1Ot_dZXQnqWO_bNbGQE6gdhXietuIP2UV&sz=w4096"/u);
     assert.match(backend, /background="\$\{curtainImageUrl\}"/u);
     assert.match(backend, /background-image:[^;]*url\(\$\{curtainImageUrl\}\)/u);
     assert.match(backend, /Jerome Balangue Portfolio/u);
-    assert.match(backend, /profileImageUrl: "https:\/\/jeromebalangue\.github\.io\/static\/media\/images\/home\/jerome-hero-portrait\.jpg"/u);
+    assert.match(backend, /profileImageUrl: "https:\/\/drive\.google\.com\/thumbnail\?id=1JDN_LOQexli7mBBp2bNqW_e4lUMz6m3m&sz=w4096"/u);
     assert.match(backend, /alt="Jerome Balangue"/u);
 });
 

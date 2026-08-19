@@ -62,6 +62,6 @@ test("the testimonial list continuously auto-scrolls, pauses for interaction, an
     assert.match(css, /@keyframes home-testimonials-scroll[\s\S]*?translate3d/u);
     assert.match(css, /@media \(prefers-reduced-motion: reduce\)[\s\S]*?\.home-testimonials__track\.is-ready\s*\{[\s\S]*?animation: none;/u);
     assert.match(script, /pageJumpLinks\.forEach/u);
-    assert.match(html, /static\/css\/main\.css\?v=1\.0\.55/u);
-    assert.match(html, /static\/js\/main\.js\?v=1\.0\.47/u);
+    assert.match(html, /static\/css\/main\.css\?v=1\.0\.56/u);
+    assert.match(html, /static\/js\/main\.js\?v=1\.0\.48/u);
 });
