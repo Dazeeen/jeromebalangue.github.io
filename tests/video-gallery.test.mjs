@@ -147,7 +147,9 @@ test("Video Editing uses the curtain and the official Drive preview player", asy
     assert.match(script, /frame\.setAttribute\("sandbox", "allow-scripts allow-same-origin"\)/u);
     assert.match(script, /pointerenter[\s\S]*?startVideoPosterPreview\(button, entry\)/u);
     assert.match(stylesheet, /\.video-poster__player\s*\{[^}]*pointer-events:\s*none;/su);
+    assert.match(stylesheet, /\.video-poster\.is-previewing::before\s*\{[^}]*background:\s*linear-gradient\(to bottom, #080a0b/su);
     assert.match(stylesheet, /\.video-cinema__detail-guard\s*\{[^}]*pointer-events:\s*auto;/su);
+    assert.match(stylesheet, /\.video-cinema__detail-guard\s*\{[^}]*background:\s*linear-gradient\(to bottom, #080a0b/su);
     assert.doesNotMatch(script, /videoOpenLink|getDriveViewUrl/u);
     assert.doesNotMatch(script, /videoDetailVideo|setVideoWatchButtonState|toggleVideoWatch/u);
 });

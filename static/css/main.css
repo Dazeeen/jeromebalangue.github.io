@@ -6014,6 +6014,18 @@ body.video-viewer-open {
     opacity: 1;
 }
 
+.video-poster.is-previewing::before {
+    position: absolute;
+    z-index: 3;
+    top: 0;
+    right: 0;
+    left: 0;
+    height: 3.4rem;
+    background: linear-gradient(to bottom, #080a0b 0 72%, rgba(8, 10, 11, 0) 100%);
+    content: "";
+    pointer-events: none;
+}
+
 .video-poster__meta {
     position: absolute;
     z-index: 2;
@@ -6179,8 +6191,8 @@ body.video-viewer-open {
     top: 0;
     right: 0;
     left: 0;
-    height: clamp(3.25rem, 8vh, 4.5rem);
-    background: linear-gradient(to bottom, rgba(8, 10, 11, 0.96), rgba(8, 10, 11, 0));
+    height: clamp(4rem, 10vh, 5.5rem);
+    background: linear-gradient(to bottom, #080a0b 0 72%, rgba(8, 10, 11, 0) 100%);
     pointer-events: auto;
 }
 
