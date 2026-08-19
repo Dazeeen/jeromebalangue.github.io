@@ -42,7 +42,8 @@ Media/
     ...all other site image folders
   videos/
     --Category Name--/
-  archives/
+Resume/                    Private folder; first PDF is the hero download source
+Private Source & Archives/ Private original files, references, and ZIP archives
 ```
 
 The Social Media Designs and Video Editing sections keep the same folder convention:
@@ -57,16 +58,32 @@ rule applies to video category folders. Empty category folders are hidden. Files
 added to `AI_generated_design` automatically join both the organized AI gallery
 and its randomized floating cards.
 
-`integrations/google-apps-script/drive-media-catalog/` exposes a read-only JSONP
-catalog for GitHub Pages. The browser displays the bundled verified Drive snapshot
-immediately, then replaces it with the current folder scan when the catalog loads.
+`integrations/google-apps-script/drive-media-catalog/` exposes a read-only catalog
+to a sandboxed hidden frame. The browser accepts its `postMessage` response only
+from Google Apps Script, with the expected source marker and a per-request nonce.
+It displays the bundled verified Drive snapshot immediately, then replaces it with
+the current folder scan when the catalog loads.
 The live catalog is cached for only 60 seconds, so folder and media changes normally
 appear within about a minute without editing the repository or regenerating files.
 
-Media files and the `Media` folder must retain **Anyone with the link - Viewer**
-access. Do not rename the root `images`, `videos`, `social-media-designs`, or
-`AI_generated_design` folders; category folders and their media can be freely added,
-renamed, or removed using the `--Category Name--` format.
+Only files intentionally displayed by the portfolio are kept in its public media
+tree. Source assets, references, archives, inquiries, and review storage remain in
+private Drive folders. Do not rename the public `images`, `videos`,
+`social-media-designs`, or `AI_generated_design` folders; category folders and their
+media can be freely added, renamed, or removed using the `--Category Name--` format.
+
+The hero résumé button uses the alphabetically first PDF in `Website Portfolio/Resume`.
+The folder stays private while the selected PDF itself has read-only public access.
+Prefix the intended download with `01 -` when replacing it.
+
+## Browser security boundary
+
+The repository and deployed static frontend are public, so delivered HTML, CSS, and
+JavaScript cannot be hidden from browser developer tools. Security therefore does
+not rely on obfuscation. The site enforces a restrictive Content Security Policy,
+Trusted Types, a no-referrer policy, origin-and-nonce-checked cross-origin messages,
+backend validation, and private Drive separation. No private token or credential is
+stored in frontend code. See `SECURITY.md` for the reporting policy.
 
 ## Why Work With Me
 

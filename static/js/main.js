@@ -94,6 +94,7 @@ const reviewsDataFrame = document.querySelector("[data-reviews-data-frame]");
 const reviewList = document.querySelector("[data-review-list]");
 const reviewCount = document.querySelector("[data-review-count]");
 const homeReviewTrack = document.querySelector("[data-home-review-track]");
+const resumeDownloadLink = document.querySelector("[data-resume-download]");
 const siteToastStack = document.querySelector("[data-site-toast-stack]");
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 const CONTACT_SITE_ORIGIN = "https://jeromebalangue.github.io";
@@ -105,6 +106,7 @@ const CONTACT_ATTACHMENTS_MAX_TOTAL_BYTES = 20 * 1024 * 1024;
 const REVIEW_FORM_TIMEOUT_MS = 45000;
 const SITE_TOAST_MAX_COUNT = 3;
 const SITE_TOAST_DEFAULT_DURATION_MS = 6000;
+const DRIVE_MEDIA_CATALOG_SOURCE = "jerome-portfolio-drive-media-catalog";
 const CONTACT_ATTACHMENT_DEFAULT_MESSAGE = "Up to 10 documents · 5 MB each · 20 MB total";
 const CONTACT_DOCUMENT_TYPES = Object.freeze({
     pdf: { mimeType: "application/pdf", accepted: ["application/pdf"] },
@@ -201,6 +203,20 @@ const DRIVE_MEDIA_SETTINGS = window.DRIVE_MEDIA_CONFIG || {};
 let driveMediaCatalogPromise = null;
 const AI_FLOAT_FADE_MS = 760;
 
+const isTrustedGoogleAppsScriptOrigin = (origin) => (
+    origin === "https://script.google.com"
+    || /^https:\/\/[a-z0-9-]+\.googleusercontent\.com$/iu.test(origin)
+);
+
+const createDriveCatalogNonce = () => {
+    if (window.crypto?.getRandomValues) {
+        const values = new Uint32Array(4);
+        window.crypto.getRandomValues(values);
+        return Array.from(values, (value) => value.toString(36)).join("");
+    }
+    return `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`;
+};
+
 const loadDriveMediaCatalog = () => {
     if (driveMediaCatalogPromise) return driveMediaCatalogPromise;
     if (typeof DRIVE_MEDIA_SETTINGS.catalogUrl !== "string" || !DRIVE_MEDIA_SETTINGS.catalogUrl) {
@@ -209,23 +225,18 @@ const loadDriveMediaCatalog = () => {
     }
 
     driveMediaCatalogPromise = new Promise((resolve, reject) => {
-        const callbackName = `__jeromeDriveMediaCatalog_${Date.now()}_${Math.random()
-            .toString(36)
-            .slice(2)}`;
-        const catalogScript = document.createElement("script");
+        const requestNonce = createDriveCatalogNonce();
+        const catalogFrame = document.createElement("iframe");
         const timeoutMs = Number(DRIVE_MEDIA_SETTINGS.catalogTimeoutMs) || 8000;
         const cacheBucketMs = Number(DRIVE_MEDIA_SETTINGS.cacheBucketMs) || 60000;
         const separator = DRIVE_MEDIA_SETTINGS.catalogUrl.includes("?") ? "&" : "?";
         let settled = false;
+        let timeoutId = null;
 
         const cleanup = () => {
             window.clearTimeout(timeoutId);
-            catalogScript.remove();
-            try {
-                delete window[callbackName];
-            } catch {
-                window[callbackName] = undefined;
-            }
+            window.removeEventListener("message", handleCatalogMessage);
+            catalogFrame.remove();
         };
         const finish = (catalog, error) => {
             if (settled) return;
@@ -235,7 +246,16 @@ const loadDriveMediaCatalog = () => {
             else resolve(catalog);
         };
 
-        window[callbackName] = (catalog) => {
+        const handleCatalogMessage = (event) => {
+            if (
+                event.source !== catalogFrame.contentWindow
+                ||
+                !isTrustedGoogleAppsScriptOrigin(event.origin)
+                || event.data?.source !== DRIVE_MEDIA_CATALOG_SOURCE
+                || event.data?.nonce !== requestNonce
+            ) return;
+
+            const catalog = event.data.catalog;
             if (!catalog?.ok || !catalog?.galleries) {
                 finish(null, new Error(catalog?.message || "Drive media catalog is unavailable."));
                 return;
@@ -243,15 +263,23 @@ const loadDriveMediaCatalog = () => {
             window.DRIVE_MEDIA_CATALOG = catalog;
             finish(catalog);
         };
-        catalogScript.async = true;
-        catalogScript.onerror = () => finish(null, new Error("Drive media catalog request failed."));
-        catalogScript.src = `${DRIVE_MEDIA_SETTINGS.catalogUrl}${separator}`
-            + `callback=${encodeURIComponent(callbackName)}`
+        window.addEventListener("message", handleCatalogMessage);
+        catalogFrame.hidden = true;
+        catalogFrame.tabIndex = -1;
+        catalogFrame.title = "Portfolio media catalog";
+        catalogFrame.referrerPolicy = "no-referrer";
+        catalogFrame.setAttribute("aria-hidden", "true");
+        catalogFrame.setAttribute("sandbox", "allow-scripts allow-same-origin");
+        catalogFrame.addEventListener("error", () => {
+            finish(null, new Error("Drive media catalog request failed."));
+        }, { once: true });
+        catalogFrame.src = `${DRIVE_MEDIA_SETTINGS.catalogUrl}${separator}`
+            + `nonce=${encodeURIComponent(requestNonce)}`
             + `&v=${Math.floor(Date.now() / cacheBucketMs)}`;
-        const timeoutId = window.setTimeout(() => {
+        timeoutId = window.setTimeout(() => {
             finish(null, new Error("Drive media catalog request timed out."));
         }, timeoutMs);
-        document.head.append(catalogScript);
+        document.body.append(catalogFrame);
     }).catch((error) => {
         console.warn("Live Google Drive media catalog could not be loaded; using the bundled fallback.", error);
         return null;
@@ -265,6 +293,19 @@ const getFallbackDriveGallery = (galleryName, legacyGlobalName) => (
     || window[legacyGlobalName]
     || null
 );
+
+const getDriveDownloadUrl = (fileId) => (
+    `https://drive.usercontent.google.com/download?id=${encodeURIComponent(fileId)}`
+    + "&export=download&authuser=0&confirm=t"
+);
+
+const syncResumeDownload = (entry) => {
+    if (!resumeDownloadLink || !/^[A-Za-z0-9_-]{10,}$/u.test(String(entry?.id || ""))) return;
+    resumeDownloadLink.href = getDriveDownloadUrl(entry.id);
+    resumeDownloadLink.download = "Jerome-Balangue-Resume.pdf";
+};
+
+syncResumeDownload(window.DRIVE_MEDIA_FALLBACK?.resume);
 
 if (printViewerCanvas) {
     try {
@@ -2174,15 +2215,23 @@ const showSiteToast = (message, type = "info", options = {}) => {
 
     if (!toast.isConnected) {
         toast.className = "site-toast";
-        toast.innerHTML = `
-            <span class="site-toast__icon" aria-hidden="true"></span>
-            <span class="site-toast__copy">
-                <strong class="site-toast__title"></strong>
-                <span class="site-toast__message"></span>
-            </span>
-            <button class="site-toast__close" type="button" aria-label="Dismiss notification">\u00d7</button>
-        `;
-        toast.querySelector(".site-toast__close").addEventListener("click", () => dismissSiteToast(toast));
+        const icon = document.createElement("span");
+        icon.className = "site-toast__icon";
+        icon.setAttribute("aria-hidden", "true");
+        const copy = document.createElement("span");
+        copy.className = "site-toast__copy";
+        const toastTitle = document.createElement("strong");
+        toastTitle.className = "site-toast__title";
+        const toastMessage = document.createElement("span");
+        toastMessage.className = "site-toast__message";
+        const closeButton = document.createElement("button");
+        closeButton.className = "site-toast__close";
+        closeButton.type = "button";
+        closeButton.setAttribute("aria-label", "Dismiss notification");
+        closeButton.textContent = "\u00d7";
+        copy.append(toastTitle, toastMessage);
+        toast.append(icon, copy, closeButton);
+        closeButton.addEventListener("click", () => dismissSiteToast(toast));
         siteToastStack.append(toast);
     } else {
         toast.classList.remove("is-leaving");
@@ -2273,11 +2322,6 @@ const createHomeTestimonialCard = (review, hiddenDuplicate = false) => {
     orbit.className = "home-testimonial-card__orbit";
     orbit.setAttribute("aria-hidden", "true");
 
-    const label = document.createElement("span");
-    label.className = "home-testimonial-card__label";
-    label.textContent = "testimonial";
-    label.setAttribute("aria-hidden", "true");
-
     const createDots = (position) => {
         const dots = document.createElement("span");
         dots.className = `home-testimonial-card__dots home-testimonial-card__dots--${position}`;
@@ -2327,7 +2371,6 @@ const createHomeTestimonialCard = (review, hiddenDuplicate = false) => {
 
     panel.append(personName, stars, reviewCopy);
     card.append(
-        label,
         createDots("left"),
         createDots("right"),
         orbit,
@@ -2750,14 +2793,9 @@ const addContactAttachments = (files) => {
     }
 };
 
-const isTrustedContactMailerOrigin = (origin) => (
-    origin === "https://script.google.com"
-    || /^https:\/\/[a-z0-9-]+\.googleusercontent\.com$/iu.test(origin)
-);
-
 window.addEventListener("message", (event) => {
     if (
-        !isTrustedContactMailerOrigin(event.origin)
+        !isTrustedGoogleAppsScriptOrigin(event.origin)
         || !event.data
         || event.data.source !== CONTACT_MAILER_SOURCE
         || !contactForm
@@ -3235,6 +3273,9 @@ const loadSocialGallery = async () => {
 void loadSocialGallery();
 void loadAIGallery();
 void loadVideoGallery();
+void loadDriveMediaCatalog().then((catalog) => {
+    syncResumeDownload(catalog?.resume || window.DRIVE_MEDIA_FALLBACK?.resume);
+});
 
 socialPreviousButton?.addEventListener("click", () => moveSocialCarousel(-1));
 socialNextButton?.addEventListener("click", () => moveSocialCarousel(1));

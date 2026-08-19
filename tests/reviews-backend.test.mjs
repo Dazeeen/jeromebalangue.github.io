@@ -4,10 +4,12 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import vm from "node:vm";
 
-const [backend, moderationGateway] = await Promise.all([
+const [backend, moderationGatewayHtml, moderationGatewayScript] = await Promise.all([
     readFile(new URL("../integrations/google-apps-script/contact-mailer/Code.gs", import.meta.url), "utf8"),
-    readFile(new URL("../review-moderation.html", import.meta.url), "utf8")
+    readFile(new URL("../review-moderation.html", import.meta.url), "utf8"),
+    readFile(new URL("../static/js/review-moderation.js", import.meta.url), "utf8")
 ]);
+const moderationGateway = `${moderationGatewayHtml}\n${moderationGatewayScript}`;
 
 function createReviewBackend({ moderationEnabled = true } = {}) {
     const properties = new Map();

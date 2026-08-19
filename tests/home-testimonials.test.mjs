@@ -26,7 +26,9 @@ test("published review data renders complete, reference-style testimonial cards 
     assert.match(script, /reviewCopy\.textContent = feedback/u);
     assert.match(script, /personName\.textContent = name/u);
     assert.match(script, /"★"\.repeat\(rating\) \+ "☆"\.repeat\(5 - rating\)/u);
-    assert.match(script, /label\.textContent = "testimonial"/u);
+    assert.doesNotMatch(script, /label\.textContent = "testimonial"/u);
+    assert.doesNotMatch(script, /home-testimonial-card__label/u);
+    assert.doesNotMatch(css, /\.home-testimonial-card__label/u);
     assert.match(script, /Array\.from\(\{ length: 5 \}, \(\) => document\.createElement\("i"\)\)/u);
     assert.match(script, /createQuote\("closing"\)[\s\S]*?createQuote\("opening"\)/u);
     assert.match(script, /quoteShape\.setAttribute\("viewBox", "0 0 74 54"\)/u);
@@ -61,7 +63,9 @@ test("the testimonial list continuously auto-scrolls, pauses for interaction, an
     assert.match(css, /\.home-testimonials__viewport:hover \.home-testimonials__track,[\s\S]*?animation-play-state: paused;/u);
     assert.match(css, /@keyframes home-testimonials-scroll[\s\S]*?translate3d/u);
     assert.match(css, /@media \(prefers-reduced-motion: reduce\)[\s\S]*?\.home-testimonials__track\.is-ready\s*\{[\s\S]*?animation: none;/u);
+    assert.match(css, /\.home-testimonials\s*\{[\s\S]*?background-image:\s*url\("https:\/\/drive\.google\.com\/thumbnail/u);
+    assert.doesNotMatch(css, /\.home-testimonials\s*\{[\s\S]*?rgba\(3, 13, 33, 0\.97\)/u);
     assert.match(script, /pageJumpLinks\.forEach/u);
-    assert.match(html, /static\/css\/main\.css\?v=1\.0\.56/u);
-    assert.match(html, /static\/js\/main\.js\?v=1\.0\.48/u);
+    assert.match(html, /static\/css\/main\.css\?v=1\.0\.57/u);
+    assert.match(html, /static\/js\/main\.js\?v=1\.0\.49/u);
 });

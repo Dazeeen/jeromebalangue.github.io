@@ -2,7 +2,11 @@
     "use strict";
 
     const catalogUrl = "https://script.google.com/macros/s/AKfycbybFNp4KFW6KWvfRvriRpCUnZFj8P1ZBQmSZ4ENcuavSS05Q3Pjk4ESs9BJmhiIToQujw/exec";
-    const mediaFolderId = "18SAnq0Bb9ghlt2mG0jPKkSmh0hw7qvAT";
+    const resume = Object.freeze({
+        id: "1D_4vuNZl4jcVPtUhJgp8ShbcuKHLpsBv",
+        file: "01 - Jerome Balangue Resume.pdf",
+        mimeType: "application/pdf"
+    });
     const fileDefinitions = {
         "images/about/jerome-laptop-cutout.png": ["10BJZLxjdvVAzFq2gq89UAthh-DQgezRo", "image/png"],
         "images/AI_generated_design/brighter-choice-ai-design.png": ["1tTGJQ7a_it-hMkVgY7vUdY_Tcavk0reD", "image/png"],
@@ -10,11 +14,6 @@
         "images/AI_generated_design/rising-energy-cost-ai-design.jpg": ["1DQdv68FVhVFJq9ntrvKS0I1ifQ-WuabG", "image/jpeg"],
         "images/AI_generated_design/solar-installation-ai-scene.png": ["12DQszNUKaJZXSHJ0HrqQu2G_1PwfOXlE", "image/png"],
         "images/AI_generated_design/summer-cooling-ai-design.png": ["1l15_OuyBGY0V51SjyeDOmsa0swWPWSqi", "image/png"],
-        "images/archive/social-media-designs/campaign/easter-sunday-campaign.png": ["1XqImZ8kTZWVQ5QMQeff93J5PjFCkYY4_", "image/png"],
-        "images/archive/social-media-designs/product/premium-burger-promotion.png": ["1ThTY3jcCfHTJEU2EJGywb3rGjIvTdD2n", "image/png"],
-        "images/archive/social-media-designs/real-estate/everglens-site-tripping.jpg": ["14C25H9KveKXxn0vRjmHwQMMgYcF89frf", "image/jpeg"],
-        "images/archive/social-media-designs/solar/12kw-hybrid-system-offer.png": ["1ElW1ZAZ8Qc9GYf_RcEYVsQLyF0VFjLCa", "image/png"],
-        "images/archive/social-media-designs/solar/rising-energy-costs.jpg": ["11vJ3qmNJ9vQSGUxfoNR7bpDOdOe9obaI", "image/jpeg"],
         "images/home/jerome-hero-cutout.png": ["1_yIVXlPeFAeFLOZxWs7UTMhw7TAqFzN-", "image/png"],
         "images/home/jerome-hero-portrait.jpg": ["1JDN_LOQexli7mBBp2bNqW_e4lUMz6m3m", "image/jpeg"],
         "images/print-marketing-materials/booth/exhibition-booth-back.png": ["1Gz0-CmwwRreGcA0_SAe_SkBIOqs5eecw", "image/png"],
@@ -43,9 +42,6 @@
         "images/social-media-designs/--Solar--/avantech-saturn-hybrid-inverter.jpg": ["1o3lbnSEeqhpJ28sQMG1A6-IrWllmpzUA", "image/jpeg"],
         "images/social-media-designs/--Solar--/save-more-with-solar.png": ["1WjIpFWwXt-JeG_c36x7bd4_lEAeDOOaB", "image/png"],
         "images/social-media-designs/--Solar--/solar-storage-solutions.png": ["16fdoOM-FuTcRf5iBzda5TGSCkh_ILf9Z", "image/png"],
-        "images/source-assets/portraits/jerome-gimbal-source.png": ["1j-uwzmrIU_fIroCdSKSuV8QSMIKLe2rr", "image/png"],
-        "images/source-assets/portraits/jerome-laptop-source.png": ["1hMta9pq-LxxMrPivnGudb-y_Wq7u0wD9", "image/png"],
-        "images/source-assets/social-media/solar-installation-reference.png": ["1H2xSmxuq304PbpHQDQ9XOYirqPKImqkm", "image/png"],
         "videos/--App Promotional Video--/AIRPLANE CHEFS.mp4": ["17yFNFpGj25i2doLnYId70_9MFvLHmugH", "video/mp4"],
         "videos/--App Promotional Video--/ALIEXPRESS.mp4": ["1GHJfoJXtN71UisN97h-aDqSPZw7ZNFt1", "video/mp4"],
         "videos/--App Promotional Video--/DONNA AI.mp4": ["1Uc1NzImIA-V9ImUBNHSd9MeGe_3WtOcH", "video/mp4"],
@@ -217,8 +213,6 @@
 
     window.DRIVE_MEDIA_CONFIG = Object.freeze({
         catalogUrl,
-        mediaFolderId,
-        mediaFolderUrl: `https://drive.google.com/drive/folders/${mediaFolderId}`,
         catalogTimeoutMs: 8000,
         cacheBucketMs: 60000
     });
@@ -226,6 +220,7 @@
         version: 1,
         ok: true,
         source: "google-drive-static-fallback",
+        resume,
         assets,
         galleries
     };

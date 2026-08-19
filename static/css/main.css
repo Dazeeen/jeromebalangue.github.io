@@ -669,6 +669,99 @@ body {
     transform: translate(-50%, -50%);
 }
 
+.resume-download {
+    position: absolute;
+    z-index: 5;
+    top: 71.5%;
+    left: 50%;
+    display: inline-flex;
+    align-items: center;
+    min-width: clamp(13.75rem, 19vw, 16.25rem);
+    min-height: 3.65rem;
+    padding: 0.45rem 0.65rem 0.45rem 0.5rem;
+    border: 1px solid rgba(183, 211, 255, 0.55);
+    border-radius: 999px;
+    gap: 0.7rem;
+    color: #f7fbff;
+    background: linear-gradient(110deg, rgba(5, 20, 45, 0.86), rgba(17, 70, 145, 0.72));
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.13),
+        0 0.85rem 2.4rem rgba(0, 0, 0, 0.38);
+    text-decoration: none;
+    -webkit-backdrop-filter: blur(0.8rem);
+    backdrop-filter: blur(0.8rem);
+    transform: translate(-50%, -50%);
+    transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+
+.resume-download:hover,
+.resume-download:focus-visible {
+    border-color: rgba(224, 237, 255, 0.96);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.18),
+        0 1rem 2.8rem rgba(10, 70, 157, 0.42);
+    transform: translate(-50%, calc(-50% - 0.16rem));
+}
+
+.resume-download:focus-visible {
+    outline: 2px solid #f2f7ff;
+    outline-offset: 0.22rem;
+}
+
+.resume-download__icon {
+    display: grid;
+    flex: 0 0 2.65rem;
+    width: 2.65rem;
+    height: 2.65rem;
+    place-items: center;
+    border-radius: 50%;
+    color: #fff;
+    background: linear-gradient(145deg, #3b8cff, #1352b7);
+    box-shadow: 0 0.42rem 1rem rgba(10, 78, 178, 0.42);
+}
+
+.resume-download__icon svg {
+    width: 1.15rem;
+    height: 1.15rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.8;
+}
+
+.resume-download__copy {
+    display: grid;
+    min-width: 0;
+    gap: 0.16rem;
+    text-align: left;
+}
+
+.resume-download__copy strong {
+    font-size: clamp(0.67rem, 0.9vw, 0.78rem);
+    font-weight: 800;
+    letter-spacing: 0.075em;
+    line-height: 1.1;
+    text-transform: uppercase;
+}
+
+.resume-download__copy small {
+    color: rgba(218, 232, 254, 0.66);
+    font-size: 0.56rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    line-height: 1.1;
+    text-transform: uppercase;
+}
+
+.resume-download__arrow {
+    margin-left: auto;
+    padding-right: 0.25rem;
+    color: rgba(224, 237, 255, 0.82);
+    font-size: 1rem;
+    line-height: 1;
+}
+
 .home-testimonials {
     position: relative;
     isolation: isolate;
@@ -679,9 +772,11 @@ body {
     gap: clamp(2rem, 4vw, 3.5rem);
     overflow: hidden;
     border-top: 1px solid rgba(135, 178, 247, 0.2);
-    background:
-        linear-gradient(135deg, rgba(3, 13, 33, 0.97), rgba(7, 31, 74, 0.95)),
-        url("https://drive.google.com/thumbnail?id=1Ot_dZXQnqWO_bNbGQE6gdhXietuIP2UV&sz=w4096") center / cover no-repeat;
+    background-color: #020306;
+    background-image: url("https://drive.google.com/thumbnail?id=1Ot_dZXQnqWO_bNbGQE6gdhXietuIP2UV&sz=w4096");
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover;
 }
 
 .home-testimonials::before {
@@ -689,10 +784,8 @@ body {
     z-index: -1;
     inset: 0;
     background:
-        radial-gradient(circle at 12% 24%, rgba(38, 103, 210, 0.18), transparent 32%),
-        radial-gradient(circle at 88% 68%, rgba(40, 121, 239, 0.12), transparent 29%),
-        repeating-linear-gradient(0deg, transparent 0 3.9rem, rgba(143, 181, 243, 0.035) 4rem),
-        repeating-linear-gradient(90deg, transparent 0 3.9rem, rgba(143, 181, 243, 0.03) 4rem);
+        linear-gradient(180deg, rgba(0, 0, 0, 0.14), rgba(1, 8, 20, 0.2)),
+        radial-gradient(circle at 50% 58%, transparent 25%, rgba(0, 0, 0, 0.18) 100%);
     content: "";
     pointer-events: none;
 }
@@ -877,20 +970,6 @@ body {
     clip-path: inset(0 0 49% 0);
     content: "";
     filter: drop-shadow(0 0.22rem 0.34rem rgba(0, 0, 0, 0.3));
-}
-
-.home-testimonial-card__label {
-    position: absolute;
-    z-index: 5;
-    top: 6.4cqi;
-    left: 50%;
-    color: rgba(240, 246, 255, 0.92);
-    font-family: "Pinyon Script", "Times New Roman", cursive;
-    font-size: clamp(2.35rem, 11.45cqi, 3rem);
-    letter-spacing: 0.015em;
-    line-height: 1;
-    text-shadow: 0 0.22rem 0.5rem rgba(0, 0, 0, 0.34);
-    transform: translateX(-50%) rotate(-3deg);
 }
 
 .home-testimonial-card__dots {
@@ -4249,6 +4328,12 @@ body {
         font-size: clamp(0.92rem, 4.5vw, 1.28rem);
     }
 
+    .resume-download {
+        top: 74%;
+        min-width: min(15rem, calc(100vw - 3rem));
+        min-height: 3.4rem;
+    }
+
     .about-section {
         height: auto;
         min-height: auto;
@@ -4740,6 +4825,10 @@ body {
 
     .role {
         top: 68%;
+    }
+
+    .resume-download {
+        top: 76%;
     }
 }
 

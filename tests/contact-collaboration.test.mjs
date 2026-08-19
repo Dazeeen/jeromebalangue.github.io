@@ -91,6 +91,6 @@ test("the reference-inspired composition is responsive and cache-busted", () => 
     assert.match(css, /\.contact-form__file-item/u);
     assert.match(css, /\.contact-form__upload-progress-track/u);
     assert.match(css, /@keyframes contact-upload-indeterminate/u);
-    assert.match(html, /static\/css\/main\.css\?v=1\.0\.56/u);
-    assert.match(html, /static\/js\/main\.js\?v=1\.0\.48/u);
+    assert.match(html, /static\/css\/main\.css\?v=1\.0\.57/u);
+    assert.match(html, /static\/js\/main\.js\?v=1\.0\.49/u);
 });

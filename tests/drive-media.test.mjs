@@ -44,8 +44,8 @@ test("the Drive fallback catalogs every migrated image and video", () => {
     const videoAssets = assets.filter((asset) => asset.mimeType.startsWith("video/"));
     const ids = assets.map((asset) => asset.id);
 
-    assert.equal(assets.length, 54);
-    assert.equal(imageAssets.length, 42);
+    assert.equal(assets.length, 46);
+    assert.equal(imageAssets.length, 34);
     assert.equal(videoAssets.length, 12);
     assert.equal(new Set(ids).size, ids.length);
     imageAssets.forEach((asset) => {
@@ -54,6 +54,9 @@ test("the Drive fallback catalogs every migrated image and video", () => {
     videoAssets.forEach((asset) => {
         assert.match(asset.src, /^https:\/\/drive\.usercontent\.google\.com\/download\?id=/u);
     });
+    assert.equal(fallback.resume.id, "1D_4vuNZl4jcVPtUhJgp8ShbcuKHLpsBv");
+    assert.equal(fallback.resume.mimeType, "application/pdf");
+    assert.doesNotMatch(driveDataScript, /images\/(?:archive|source-assets)\//u);
 });
 
 test("the fallback preserves categorized gallery behavior", () => {
@@ -79,11 +82,13 @@ test("the page loads Drive data before gallery initialization", () => {
     assert.doesNotMatch(html, /static\/media\/(?:images|videos)\//u);
     assert.match(driveConfig.catalogUrl, /^https:\/\/script\.google\.com\/macros\/s\//u);
     assert.match(mainScript, /loadDriveMediaCatalog/u);
-    assert.match(mainScript, /callback=\$\{encodeURIComponent\(callbackName\)\}/u);
+    assert.match(mainScript, /catalogFrame\.setAttribute\("sandbox", "allow-scripts allow-same-origin"\)/u);
+    assert.match(mainScript, /event\.data\?\.nonce !== requestNonce/u);
+    assert.match(mainScript, /event\.data\?\.source !== DRIVE_MEDIA_CATALOG_SOURCE/u);
     assert.match(mainScript, /using the bundled fallback/u);
 });
 
-test("Apps Script scans Drive folders and publishes an anonymous JSONP catalog", () => {
+test("Apps Script scans Drive folders and publishes a nonce-bound iframe catalog", () => {
     assert.equal(appsscriptManifest.webapp.access, "ANYONE_ANONYMOUS");
     assert.equal(appsscriptManifest.webapp.executeAs, "USER_DEPLOYING");
     assert.ok(appsscriptManifest.oauthScopes.includes(
@@ -93,6 +98,9 @@ test("Apps Script scans Drive folders and publishes an anonymous JSONP catalog",
     assert.match(catalogCode, /Drive\.Files\.list/u);
     assert.match(catalogCode, /buildCategorizedGallery_\(socialFolder, "images"\)/u);
     assert.match(catalogCode, /buildCategorizedGallery_\(videosFolder, "videos"\)/u);
-    assert.match(catalogCode, /ContentService\.MimeType\.JAVASCRIPT/u);
+    assert.match(catalogCode, /buildResumeEntry_\(\)/u);
+    assert.match(catalogCode, /window\.top\.postMessage/u);
+    assert.match(catalogCode, /HtmlService\.XFrameOptionsMode\.ALLOWALL/u);
+    assert.doesNotMatch(catalogCode, /ContentService\.MimeType\.JAVASCRIPT/u);
     assert.match(catalogCode, /catalogCacheSeconds:\s*60/u);
 });

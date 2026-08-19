@@ -1,6 +1,8 @@
 const DRIVE_MEDIA_CONFIG = Object.freeze({
   mediaFolderId: "18SAnq0Bb9ghlt2mG0jPKkSmh0hw7qvAT",
-  mediaFolderUrl: "https://drive.google.com/drive/folders/18SAnq0Bb9ghlt2mG0jPKkSmh0hw7qvAT",
+  resumeFolderId: "1QPNa-acEV1iYMgwe7hpa9Ma0AMdgDIHv",
+  siteOrigin: "https://jeromebalangue.github.io",
+  responseSource: "jerome-portfolio-drive-media-catalog",
   catalogCacheKey: "jerome-portfolio-drive-media-v1",
   catalogCacheSeconds: 60,
   categoryFolderPattern: /^--(.+?)--$/,
@@ -14,11 +16,11 @@ const DRIVE_MEDIA_CONFIG = Object.freeze({
 });
 
 function doGet(event) {
-  const callback = getJsonpCallback_(event);
+  const nonce = getRequestNonce_(event);
 
   try {
     const refreshRequested = Boolean(event && event.parameter && event.parameter.refresh === "1");
-    return createCatalogResponse_(buildMediaCatalog_(refreshRequested), callback);
+    return createCatalogResponse_(buildMediaCatalog_(refreshRequested), nonce);
   } catch (error) {
     return createCatalogResponse_({
       version: 1,
@@ -27,7 +29,7 @@ function doGet(event) {
       generatedAt: new Date().toISOString(),
       error: "catalog-unavailable",
       message: String(error && error.message ? error.message : error)
-    }, callback);
+    }, nonce);
   }
 }
 
@@ -40,7 +42,8 @@ function testMediaCatalog() {
     socialImageCount: catalog.galleries.social.imageCount,
     aiImageCount: catalog.galleries.ai.imageCount,
     videoCategoryCount: catalog.galleries.video.categories.length,
-    videoCount: catalog.galleries.video.videoCount
+    videoCount: catalog.galleries.video.videoCount,
+    resumeFile: catalog.resume ? catalog.resume.file : ""
   };
 }
 
@@ -62,6 +65,7 @@ function buildMediaCatalog_(forceRefresh) {
   const videosFolder = requireChildFolder_(mediaFolder, "videos");
   const socialFolder = requireChildFolder_(imagesFolder, "social-media-designs");
   const aiFolder = requireChildFolder_(imagesFolder, "AI_generated_design");
+  const resume = buildResumeEntry_();
   const assets = {};
 
   collectAssets_(imagesFolder, "images", assets, DRIVE_MEDIA_CONFIG.imageMimePattern);
@@ -73,8 +77,7 @@ function buildMediaCatalog_(forceRefresh) {
     source: "google-drive",
     generatedAt: new Date().toISOString(),
     cacheSeconds: DRIVE_MEDIA_CONFIG.catalogCacheSeconds,
-    folderId: DRIVE_MEDIA_CONFIG.mediaFolderId,
-    folderUrl: DRIVE_MEDIA_CONFIG.mediaFolderUrl,
+    resume,
     assets,
     galleries: {
       social: buildCategorizedGallery_(socialFolder, "images"),
@@ -93,6 +96,23 @@ function buildMediaCatalog_(forceRefresh) {
   }
 
   return catalog;
+}
+
+function buildResumeEntry_() {
+  const resumeFolder = Drive.Files.get(DRIVE_MEDIA_CONFIG.resumeFolderId, {
+    fields: "id,name,mimeType"
+  });
+  const resumeFile = listChildren_(resumeFolder.id).find(function (entry) {
+    return entry.mimeType === "application/pdf";
+  });
+  if (!resumeFile) return null;
+
+  return {
+    id: resumeFile.id,
+    file: resumeFile.name,
+    mimeType: resumeFile.mimeType,
+    updatedAt: resumeFile.modifiedTime || ""
+  };
 }
 
 function collectAssets_(folder, relativePath, assets, mimePattern) {
@@ -290,22 +310,26 @@ function compareNames_(left, right) {
   });
 }
 
-function getJsonpCallback_(event) {
-  const callback = event && event.parameter ? String(event.parameter.callback || "") : "";
-  return /^[A-Za-z_$][0-9A-Za-z_$]*(?:\.[A-Za-z_$][0-9A-Za-z_$]*)*$/.test(callback)
-    ? callback
-    : "";
+function getRequestNonce_(event) {
+  const nonce = event && event.parameter ? String(event.parameter.nonce || "") : "";
+  return /^[A-Za-z0-9_-]{12,160}$/.test(nonce) ? nonce : "";
 }
 
-function createCatalogResponse_(payload, callback) {
-  const serialized = JSON.stringify(payload);
-  if (callback) {
-    return ContentService
-      .createTextOutput(callback + "(" + serialized + ");")
-      .setMimeType(ContentService.MimeType.JAVASCRIPT);
-  }
+function createCatalogResponse_(payload, nonce) {
+  const message = JSON.stringify({
+    source: DRIVE_MEDIA_CONFIG.responseSource,
+    nonce: nonce,
+    catalog: payload
+  })
+    .replace(/</g, "\\u003c")
+    .replace(/\u2028/g, "\\u2028")
+    .replace(/\u2029/g, "\\u2029");
+  const targetOrigin = JSON.stringify(DRIVE_MEDIA_CONFIG.siteOrigin);
+  const html = "<!doctype html><meta charset=\"utf-8\"><script>"
+    + "window.top.postMessage(" + message + "," + targetOrigin + ");"
+    + "</" + "script>";
 
-  return ContentService
-    .createTextOutput(serialized)
-    .setMimeType(ContentService.MimeType.JSON);
+  return HtmlService
+    .createHtmlOutput(html)
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
