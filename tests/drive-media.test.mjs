@@ -86,6 +86,13 @@ test("the page loads Drive data before gallery initialization", () => {
     assert.match(mainScript, /event\.data\?\.nonce !== requestNonce/u);
     assert.match(mainScript, /event\.data\?\.source !== DRIVE_MEDIA_CATALOG_SOURCE/u);
     assert.match(mainScript, /using the bundled fallback/u);
+    assert.equal(driveConfig.catalogTimeoutMs, 30000);
+    assert.equal(driveConfig.catalogRetryCount, 1);
+    assert.equal(driveConfig.catalogRetryDelayMs, 2500);
+    assert.equal(driveConfig.catalogRefreshMs, 60000);
+    assert.match(mainScript, /attempt <= retryCount/u);
+    assert.match(mainScript, /loadDriveMediaCatalog\(\{ forceRefresh: true \}\)/u);
+    assert.match(mainScript, /visibilitychange/u);
 });
 
 test("Apps Script scans Drive folders and publishes a nonce-bound iframe catalog", () => {
@@ -103,4 +110,12 @@ test("Apps Script scans Drive folders and publishes a nonce-bound iframe catalog
     assert.match(catalogCode, /HtmlService\.XFrameOptionsMode\.ALLOWALL/u);
     assert.doesNotMatch(catalogCode, /ContentService\.MimeType\.JAVASCRIPT/u);
     assert.match(catalogCode, /catalogCacheSeconds:\s*60/u);
+});
+
+test("Drive gallery files use MIME type and folders instead of filename conventions", () => {
+    assert.match(catalogCode, /imageMimePattern:\s*\/\^image\\\//u);
+    assert.match(catalogCode, /videoMimePattern:\s*\/\^video\\\//u);
+    assert.match(catalogCode, /const files = listFiles_\(categoryFolder, mimePattern\)/u);
+    assert.match(catalogCode, /entry\.alt = labelFromFilename_\(file\.name\)/u);
+    assert.doesNotMatch(catalogCode, /file\.name\.match|filenamePattern|fileNamePattern/u);
 });

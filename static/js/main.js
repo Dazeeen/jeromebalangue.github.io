@@ -201,6 +201,8 @@ const EDUCATION_REVEAL_POINT = 0.68;
 const SOCIAL_DRAG_INTENT_THRESHOLD = 7;
 const DRIVE_MEDIA_SETTINGS = window.DRIVE_MEDIA_CONFIG || {};
 let driveMediaCatalogPromise = null;
+let driveMediaCatalogLastRequestAt = 0;
+let driveMediaCatalogLastAppliedSignature = "";
 const AI_FLOAT_FADE_MS = 760;
 
 const isTrustedGoogleAppsScriptOrigin = (origin) => (
@@ -217,70 +219,89 @@ const createDriveCatalogNonce = () => {
     return `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`;
 };
 
-const loadDriveMediaCatalog = () => {
-    if (driveMediaCatalogPromise) return driveMediaCatalogPromise;
+const requestDriveMediaCatalog = () => new Promise((resolve, reject) => {
+    const requestNonce = createDriveCatalogNonce();
+    const catalogFrame = document.createElement("iframe");
+    const timeoutMs = Number(DRIVE_MEDIA_SETTINGS.catalogTimeoutMs) || 30000;
+    const cacheBucketMs = Number(DRIVE_MEDIA_SETTINGS.cacheBucketMs) || 60000;
+    const separator = DRIVE_MEDIA_SETTINGS.catalogUrl.includes("?") ? "&" : "?";
+    let settled = false;
+    let timeoutId = null;
+
+    const cleanup = () => {
+        window.clearTimeout(timeoutId);
+        window.removeEventListener("message", handleCatalogMessage);
+        catalogFrame.remove();
+    };
+    const finish = (catalog, error) => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        if (error) reject(error);
+        else resolve(catalog);
+    };
+
+    const handleCatalogMessage = (event) => {
+        if (
+            event.source !== catalogFrame.contentWindow
+            ||
+            !isTrustedGoogleAppsScriptOrigin(event.origin)
+            || event.data?.source !== DRIVE_MEDIA_CATALOG_SOURCE
+            || event.data?.nonce !== requestNonce
+        ) return;
+
+        const catalog = event.data.catalog;
+        if (!catalog?.ok || !catalog?.galleries) {
+            finish(null, new Error(catalog?.message || "Drive media catalog is unavailable."));
+            return;
+        }
+        window.DRIVE_MEDIA_CATALOG = catalog;
+        finish(catalog);
+    };
+    window.addEventListener("message", handleCatalogMessage);
+    catalogFrame.hidden = true;
+    catalogFrame.tabIndex = -1;
+    catalogFrame.title = "Portfolio media catalog";
+    catalogFrame.referrerPolicy = "no-referrer";
+    catalogFrame.setAttribute("aria-hidden", "true");
+    catalogFrame.setAttribute("sandbox", "allow-scripts allow-same-origin");
+    catalogFrame.addEventListener("error", () => {
+        finish(null, new Error("Drive media catalog request failed."));
+    }, { once: true });
+    catalogFrame.src = `${DRIVE_MEDIA_SETTINGS.catalogUrl}${separator}`
+        + `nonce=${encodeURIComponent(requestNonce)}`
+        + `&v=${Math.floor(Date.now() / cacheBucketMs)}`;
+    timeoutId = window.setTimeout(() => {
+        finish(null, new Error("Drive media catalog request timed out."));
+    }, timeoutMs);
+    document.body.append(catalogFrame);
+});
+
+const loadDriveMediaCatalog = (options = {}) => {
+    const forceRefresh = options.forceRefresh === true;
+    if (driveMediaCatalogPromise && !forceRefresh) return driveMediaCatalogPromise;
     if (typeof DRIVE_MEDIA_SETTINGS.catalogUrl !== "string" || !DRIVE_MEDIA_SETTINGS.catalogUrl) {
         driveMediaCatalogPromise = Promise.resolve(null);
         return driveMediaCatalogPromise;
     }
 
-    driveMediaCatalogPromise = new Promise((resolve, reject) => {
-        const requestNonce = createDriveCatalogNonce();
-        const catalogFrame = document.createElement("iframe");
-        const timeoutMs = Number(DRIVE_MEDIA_SETTINGS.catalogTimeoutMs) || 8000;
-        const cacheBucketMs = Number(DRIVE_MEDIA_SETTINGS.cacheBucketMs) || 60000;
-        const separator = DRIVE_MEDIA_SETTINGS.catalogUrl.includes("?") ? "&" : "?";
-        let settled = false;
-        let timeoutId = null;
-
-        const cleanup = () => {
-            window.clearTimeout(timeoutId);
-            window.removeEventListener("message", handleCatalogMessage);
-            catalogFrame.remove();
-        };
-        const finish = (catalog, error) => {
-            if (settled) return;
-            settled = true;
-            cleanup();
-            if (error) reject(error);
-            else resolve(catalog);
-        };
-
-        const handleCatalogMessage = (event) => {
-            if (
-                event.source !== catalogFrame.contentWindow
-                ||
-                !isTrustedGoogleAppsScriptOrigin(event.origin)
-                || event.data?.source !== DRIVE_MEDIA_CATALOG_SOURCE
-                || event.data?.nonce !== requestNonce
-            ) return;
-
-            const catalog = event.data.catalog;
-            if (!catalog?.ok || !catalog?.galleries) {
-                finish(null, new Error(catalog?.message || "Drive media catalog is unavailable."));
-                return;
+    const retryCount = Math.max(0, Number(DRIVE_MEDIA_SETTINGS.catalogRetryCount) || 0);
+    const retryDelayMs = Math.max(0, Number(DRIVE_MEDIA_SETTINGS.catalogRetryDelayMs) || 0);
+    driveMediaCatalogLastRequestAt = Date.now();
+    driveMediaCatalogPromise = (async () => {
+        let lastError = null;
+        for (let attempt = 0; attempt <= retryCount; attempt += 1) {
+            try {
+                return await requestDriveMediaCatalog();
+            } catch (error) {
+                lastError = error;
+                if (attempt < retryCount && retryDelayMs > 0) {
+                    await new Promise((resolve) => window.setTimeout(resolve, retryDelayMs));
+                }
             }
-            window.DRIVE_MEDIA_CATALOG = catalog;
-            finish(catalog);
-        };
-        window.addEventListener("message", handleCatalogMessage);
-        catalogFrame.hidden = true;
-        catalogFrame.tabIndex = -1;
-        catalogFrame.title = "Portfolio media catalog";
-        catalogFrame.referrerPolicy = "no-referrer";
-        catalogFrame.setAttribute("aria-hidden", "true");
-        catalogFrame.setAttribute("sandbox", "allow-scripts allow-same-origin");
-        catalogFrame.addEventListener("error", () => {
-            finish(null, new Error("Drive media catalog request failed."));
-        }, { once: true });
-        catalogFrame.src = `${DRIVE_MEDIA_SETTINGS.catalogUrl}${separator}`
-            + `nonce=${encodeURIComponent(requestNonce)}`
-            + `&v=${Math.floor(Date.now() / cacheBucketMs)}`;
-        timeoutId = window.setTimeout(() => {
-            finish(null, new Error("Drive media catalog request timed out."));
-        }, timeoutMs);
-        document.body.append(catalogFrame);
-    }).catch((error) => {
+        }
+        throw lastError || new Error("Drive media catalog could not be loaded.");
+    })().catch((error) => {
         console.warn("Live Google Drive media catalog could not be loaded; using the bundled fallback.", error);
         return null;
     });
@@ -3270,12 +3291,42 @@ const loadSocialGallery = async () => {
     }
 };
 
+const getDriveMediaCatalogSignature = (catalog) => JSON.stringify({
+    resume: catalog?.resume || null,
+    galleries: catalog?.galleries || null
+});
+
+const applyRefreshedDriveMediaCatalog = (catalog) => {
+    if (!catalog?.ok || !catalog.galleries) return;
+    const signature = getDriveMediaCatalogSignature(catalog);
+    if (signature === driveMediaCatalogLastAppliedSignature) return;
+
+    if (catalog.galleries.social) renderSocialGallery(catalog.galleries.social);
+    if (catalog.galleries.ai) renderAIGallery(catalog.galleries.ai);
+    if (catalog.galleries.video) renderVideoGallery(catalog.galleries.video);
+    syncResumeDownload(catalog.resume || window.DRIVE_MEDIA_FALLBACK?.resume);
+    driveMediaCatalogLastAppliedSignature = signature;
+};
+
+const refreshDriveMediaCatalogIfStale = () => {
+    if (document.hidden) return;
+    const refreshMs = Math.max(60000, Number(DRIVE_MEDIA_SETTINGS.catalogRefreshMs) || 60000);
+    if (Date.now() - driveMediaCatalogLastRequestAt < refreshMs) return;
+    void loadDriveMediaCatalog({ forceRefresh: true }).then(applyRefreshedDriveMediaCatalog);
+};
+
 void loadSocialGallery();
 void loadAIGallery();
 void loadVideoGallery();
 void loadDriveMediaCatalog().then((catalog) => {
     syncResumeDownload(catalog?.resume || window.DRIVE_MEDIA_FALLBACK?.resume);
+    driveMediaCatalogLastAppliedSignature = getDriveMediaCatalogSignature(catalog);
 });
+window.setInterval(
+    refreshDriveMediaCatalogIfStale,
+    Math.max(60000, Number(DRIVE_MEDIA_SETTINGS.catalogRefreshMs) || 60000)
+);
+document.addEventListener("visibilitychange", refreshDriveMediaCatalogIfStale);
 
 socialPreviousButton?.addEventListener("click", () => moveSocialCarousel(-1));
 socialNextButton?.addEventListener("click", () => moveSocialCarousel(1));

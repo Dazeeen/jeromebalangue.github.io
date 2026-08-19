@@ -25,6 +25,6 @@ test("the sidebar navigation supports contained touch and momentum scrolling", (
 
 test("sidebar scroll changes are cache-busted", () => {
     assert.match(html, /static\/css\/main\.css\?v=1\.0\.57/);
-    assert.match(html, /static\/js\/drive-media-data\.js\?v=1\.0\.2/);
-    assert.match(html, /static\/js\/main\.js\?v=1\.0\.49/);
+    assert.match(html, /static\/js\/drive-media-data\.js\?v=1\.0\.3/);
+    assert.match(html, /static\/js\/main\.js\?v=1\.0\.50/);
 });

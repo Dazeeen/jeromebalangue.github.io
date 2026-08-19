@@ -58,6 +58,12 @@ rule applies to video category folders. Empty category folders are hidden. Files
 added to `AI_generated_design` automatically join both the organized AI gallery
 and its randomized floating cards.
 
+Media filenames are unrestricted. Spaces, numbers, punctuation, and arbitrary
+uploaded names are accepted; gallery membership comes from the Drive folder and
+the file's image or video MIME type, not a filename pattern. The browser shows the
+bundled gallery immediately, waits up to 30 seconds for a cold Drive scan, retries
+once, and refreshes the live catalog every minute while the page remains open.
+
 `integrations/google-apps-script/drive-media-catalog/` exposes a read-only catalog
 to a sandboxed hidden frame. The browser accepts its `postMessage` response only
 from Google Apps Script, with the expected source marker and a per-request nonce.

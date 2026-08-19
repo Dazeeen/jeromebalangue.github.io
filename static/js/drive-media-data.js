@@ -213,8 +213,11 @@
 
     window.DRIVE_MEDIA_CONFIG = Object.freeze({
         catalogUrl,
-        catalogTimeoutMs: 8000,
-        cacheBucketMs: 60000
+        catalogTimeoutMs: 30000,
+        catalogRetryCount: 1,
+        catalogRetryDelayMs: 2500,
+        cacheBucketMs: 60000,
+        catalogRefreshMs: 60000
     });
     window.DRIVE_MEDIA_FALLBACK = {
         version: 1,
