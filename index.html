@@ -12,7 +12,7 @@
     <script src="static/js/head.js"></script>
     <link rel="preload" href="static/fonts/manrope-latin.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="preload" href="static/fonts/pinyon-script-latin.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="stylesheet" href="static/css/main.css?v=1.0.58">
+    <link rel="stylesheet" href="static/css/main.css?v=1.0.59">
     <link rel="preload" href="https://drive.google.com/thumbnail?id=1Ot_dZXQnqWO_bNbGQE6gdhXietuIP2UV&amp;sz=w4096" as="image" crossorigin>
     <link rel="preload" href="https://drive.google.com/thumbnail?id=1_yIVXlPeFAeFLOZxWs7UTMhw7TAqFzN-&amp;sz=w4096" as="image" crossorigin>
     <link rel="preload" href="https://drive.google.com/thumbnail?id=10BJZLxjdvVAzFq2gq89UAthh-DQgezRo&amp;sz=w4096" as="image" crossorigin>
@@ -496,20 +496,14 @@
                     <article class="video-cinema__detail" data-video-detail aria-hidden="true">
                         <iframe class="video-cinema__detail-player" data-video-detail-frame
                             title="Selected video — Google Drive player" referrerpolicy="no-referrer"
-                            sandbox="allow-scripts allow-same-origin allow-presentation"
-                            allow="autoplay; fullscreen" allowfullscreen></iframe>
+                            sandbox="allow-scripts allow-same-origin" allow="autoplay"></iframe>
                         <span class="video-cinema__detail-shade" aria-hidden="true"></span>
+                        <span class="video-cinema__detail-guard" aria-hidden="true"></span>
 
                         <div class="video-cinema__detail-copy">
                             <p data-video-detail-category>Video Editing</p>
                             <h3 data-video-detail-title>Selected video</h3>
                         </div>
-
-                        <a class="video-cinema__detail-action video-cinema__detail-action--watch"
-                            data-video-open target="_blank" rel="noopener noreferrer">
-                            <span>Open separately</span>
-                            <span class="video-cinema__action-ring" aria-hidden="true"></span>
-                        </a>
 
                         <button class="video-cinema__back" type="button" data-video-detail-close>
                             <span aria-hidden="true">&larr;</span>
@@ -1007,7 +1001,7 @@
 
     <script src="static/js/print-3d.bundle.js?v=1.0.15"></script>
     <script src="static/js/drive-media-data.js?v=1.0.3"></script>
-    <script src="static/js/main.js?v=1.0.54"></script>
+    <script src="static/js/main.js?v=1.0.55"></script>
 </body>
 
 </html>

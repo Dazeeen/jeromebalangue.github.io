@@ -67,7 +67,7 @@ test("the page renders one dynamic categorized Video Editing view", async () => 
     assert.match(html, /data-video-cinema data-mode="rail"/u);
     assert.match(html, /data-video-detail/u);
     assert.match(html, /<iframe[^>]*data-video-detail-frame/u);
-    assert.match(html, /data-video-detail-frame[\s\S]*?sandbox="allow-scripts allow-same-origin allow-presentation"/u);
+    assert.match(html, /data-video-detail-frame[\s\S]*?sandbox="allow-scripts allow-same-origin" allow="autoplay"/u);
     assert.match(html, /frame-src[^;]*https:\/\/drive\.google\.com/u);
     assert.match(script, /const preview = document\.createElement\("img"\);/u);
     assert.match(script, /preview\.src = getDriveThumbnailUrl\(entry\.id\);/u);
@@ -136,9 +136,18 @@ test("Video Editing uses the curtain and the official Drive preview player", asy
         /\.video-cinema\s*\{[^}]*drive\.google\.com\/thumbnail[^}]*background-size:\s*cover;/su
     );
     assert.doesNotMatch(script, /videoStage\?\.addEventListener\("wheel"|videoRailWheelDelta|videoRailWheelTimer/u);
-    assert.match(html, /data-video-detail-frame[\s\S]*?allow="autoplay; fullscreen" allowfullscreen/u);
-    assert.match(html, /data-video-open target="_blank" rel="noopener noreferrer"/u);
-    assert.match(script, /`https:\/\/drive\.google\.com\/file\/d\/\$\{encodeURIComponent\(fileId\)\}\/preview`/u);
-    assert.match(script, /videoOpenLink\.href = getDriveViewUrl\(entry\.id\);/u);
+    assert.match(html, /data-video-detail-frame[\s\S]*?allow="autoplay"/u);
+    assert.match(html, /class="video-cinema__detail-guard"/u);
+    assert.doesNotMatch(html, /data-video-open|Open separately|allowfullscreen|allow-presentation/u);
+    assert.doesNotMatch(html, /allow-popups|allow-top-navigation|allow-forms|allow-downloads/u);
+    assert.match(script, /parameters\.set\("autoplay", "1"\)/u);
+    assert.match(script, /getDrivePreviewUrl\(entry\?\.id, \{ autoplay: true \}\)/u);
+    assert.match(script, /const startVideoPosterPreview/u);
+    assert.match(script, /\{ autoplay: true, muted: true \}/u);
+    assert.match(script, /frame\.setAttribute\("sandbox", "allow-scripts allow-same-origin"\)/u);
+    assert.match(script, /pointerenter[\s\S]*?startVideoPosterPreview\(button, entry\)/u);
+    assert.match(stylesheet, /\.video-poster__player\s*\{[^}]*pointer-events:\s*none;/su);
+    assert.match(stylesheet, /\.video-cinema__detail-guard\s*\{[^}]*pointer-events:\s*auto;/su);
+    assert.doesNotMatch(script, /videoOpenLink|getDriveViewUrl/u);
     assert.doesNotMatch(script, /videoDetailVideo|setVideoWatchButtonState|toggleVideoWatch/u);
 });
