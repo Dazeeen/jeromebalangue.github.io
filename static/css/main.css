@@ -6129,16 +6129,16 @@ body.video-viewer-open {
     pointer-events: auto;
 }
 
-.video-cinema__detail-video {
+.video-cinema__detail-player {
     position: absolute;
     inset: 0;
     width: 100%;
     height: 100%;
-    object-fit: contain;
+    border: 0;
     background: #000;
 }
 
-.video-cinema__detail.is-portrait .video-cinema__detail-video {
+.video-cinema__detail.is-portrait .video-cinema__detail-player {
     right: auto;
     left: 50%;
     width: auto;
@@ -6191,11 +6191,13 @@ body.video-viewer-open {
     align-items: center;
     padding: 0;
     border: 0;
+    color: inherit;
     background: transparent;
     font-size: clamp(0.56rem, 0.76vw, 0.7rem);
     font-weight: 600;
     letter-spacing: 0.14em;
     text-transform: uppercase;
+    text-decoration: none;
     cursor: pointer;
 }
 

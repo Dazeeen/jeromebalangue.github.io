@@ -64,10 +64,12 @@ the file's image or video MIME type, not a filename pattern. The browser shows t
 bundled gallery immediately, waits up to 30 seconds for a cold Drive scan, retries
 once, and refreshes the live catalog every minute while the page remains open.
 
-Public videos use cross-origin Drive streaming and browser-compatible H.264/AAC
-MP4 files. Keep codec-incompatible source masters in `Private Source & Archives`
-and place only the converted public copy in a `videos/--Category Name--` folder.
-The gallery uses Drive thumbnails as posters while the video metadata is loading.
+Public video cards use Drive thumbnails, while the selected video opens in the
+official embedded Google Drive preview player. This avoids Drive's rejection of
+cross-site HTML `<video>` requests while retaining streaming, native controls,
+and the folder-driven gallery. Keep codec-incompatible source masters in
+`Private Source & Archives` and place browser-compatible H.264/AAC MP4 copies in
+a `videos/--Category Name--` folder.
 
 `integrations/google-apps-script/drive-media-catalog/` exposes a read-only catalog
 to a sandboxed hidden frame. The browser accepts its `postMessage` response only

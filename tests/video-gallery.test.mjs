@@ -66,18 +66,14 @@ test("the page renders one dynamic categorized Video Editing view", async () => 
     assert.match(script, /setVideoGalleryActive/u);
     assert.match(html, /data-video-cinema data-mode="rail"/u);
     assert.match(html, /data-video-detail/u);
-    assert.match(html, /data-video-detail-video[^>]*crossorigin="anonymous"/u);
-    assert.ok(
-        script.indexOf('preview.crossOrigin = "anonymous";') < script.indexOf("preview.src = entry.src;"),
-        "Drive previews must opt into CORS before their source is assigned."
-    );
-    assert.ok(
-        script.indexOf('videoDetailVideo.crossOrigin = "anonymous";')
-            < script.indexOf("videoDetailVideo.src = entry.src;"),
-        "The detail player must opt into CORS before its source is assigned."
-    );
-    assert.match(script, /preview\.poster = getDriveThumbnailUrl\(entry\.id\);/u);
-    assert.match(script, /videoDetailVideo\.poster = getDriveThumbnailUrl\(entry\.id\);/u);
+    assert.match(html, /<iframe[^>]*data-video-detail-frame/u);
+    assert.match(html, /data-video-detail-frame[\s\S]*?sandbox="allow-scripts allow-same-origin allow-presentation"/u);
+    assert.match(html, /frame-src[^;]*https:\/\/drive\.google\.com/u);
+    assert.match(script, /const preview = document\.createElement\("img"\);/u);
+    assert.match(script, /preview\.src = getDriveThumbnailUrl\(entry\.id\);/u);
+    assert.match(script, /videoDetailFrame\.src = previewUrl;/u);
+    assert.match(script, /getDrivePreviewUrl/u);
+    assert.doesNotMatch(script, /preview\.src = entry\.src|document\.createElement\("video"\)/u);
     assert.doesNotMatch(html, /data-video-gallery-open|data-video-detail-gallery|data-video-mosaic/u);
     assert.doesNotMatch(script, /openVideoMosaic|closeVideoMosaic|renderVideoMosaic/u);
     assert.doesNotMatch(html, /class="video-viewer/u);
@@ -116,20 +112,20 @@ test("portrait videos keep their native orientation in the detail viewer", async
     const script = await readFile(path.join(projectRoot, "static", "js", "main.js"), "utf8");
     const stylesheet = await readFile(path.join(projectRoot, "static", "css", "main.css"), "utf8");
 
-    assert.match(script, /const syncVideoOrientation = \(video, frame\)/u);
-    assert.match(script, /videoHeight > videoWidth\s*\? "portrait"/u);
-    assert.match(script, /syncVideoOrientation\(videoDetailVideo, videoDetail\)/u);
+    assert.match(script, /const syncVideoOrientation = \(media, frame\)/u);
+    assert.match(script, /mediaHeight > mediaWidth\s*\? "portrait"/u);
+    assert.match(script, /syncVideoOrientation\(sourcePreview, videoDetail\)/u);
     assert.match(
         stylesheet,
-        /\.video-cinema__detail-video\s*\{[^}]*object-fit:\s*contain;/su
+        /\.video-cinema__detail-player\s*\{[^}]*border:\s*0;/su
     );
     assert.match(
         stylesheet,
-        /\.video-cinema__detail\.is-portrait \.video-cinema__detail-video\s*\{[^}]*aspect-ratio:\s*var\(--video-aspect-ratio\);/su
+        /\.video-cinema__detail\.is-portrait \.video-cinema__detail-player\s*\{[^}]*aspect-ratio:\s*var\(--video-aspect-ratio\);/su
     );
 });
 
-test("Video Editing uses the curtain, ignores rail wheel selection, and unmutes clicked videos", async () => {
+test("Video Editing uses the curtain and the official Drive preview player", async () => {
     const html = await readFile(path.join(projectRoot, "index.html"), "utf8");
     const script = await readFile(path.join(projectRoot, "static", "js", "main.js"), "utf8");
     const stylesheet = await readFile(path.join(projectRoot, "static", "css", "main.css"), "utf8");
@@ -139,7 +135,9 @@ test("Video Editing uses the curtain, ignores rail wheel selection, and unmutes 
         /\.video-cinema\s*\{[^}]*drive\.google\.com\/thumbnail[^}]*background-size:\s*cover;/su
     );
     assert.doesNotMatch(script, /videoStage\?\.addEventListener\("wheel"|videoRailWheelDelta|videoRailWheelTimer/u);
-    assert.doesNotMatch(html, /data-video-detail-video[^>]*\bmuted\b/u);
-    assert.match(script, /videoDetailVideo\.controls = true;\s*videoDetailVideo\.muted = false;/u);
-    assert.match(script, /setVideoWatchButtonState\(true\);\s*void videoDetailVideo\.play\(\)/u);
+    assert.match(html, /data-video-detail-frame[\s\S]*?allow="autoplay; fullscreen" allowfullscreen/u);
+    assert.match(html, /data-video-open target="_blank" rel="noopener noreferrer"/u);
+    assert.match(script, /`https:\/\/drive\.google\.com\/file\/d\/\$\{encodeURIComponent\(fileId\)\}\/preview`/u);
+    assert.match(script, /videoOpenLink\.href = getDriveViewUrl\(entry\.id\);/u);
+    assert.doesNotMatch(script, /videoDetailVideo|setVideoWatchButtonState|toggleVideoWatch/u);
 });

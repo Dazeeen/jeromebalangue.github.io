@@ -66,10 +66,10 @@ const videoPreviousButton = document.querySelector("[data-video-previous]");
 const videoNextButton = document.querySelector("[data-video-next]");
 const videoCurrentNumber = document.querySelector("[data-video-current]");
 const videoDetail = document.querySelector("[data-video-detail]");
-const videoDetailVideo = document.querySelector("[data-video-detail-video]");
+const videoDetailFrame = document.querySelector("[data-video-detail-frame]");
 const videoDetailTitle = document.querySelector("[data-video-detail-title]");
 const videoDetailCategory = document.querySelector("[data-video-detail-category]");
-const videoWatchButton = document.querySelector("[data-video-watch]");
+const videoOpenLink = document.querySelector("[data-video-open]");
 const videoDetailCloseButton = document.querySelector("[data-video-detail-close]");
 const contactForm = document.querySelector("[data-contact-form]");
 const contactFormStatus = document.querySelector("[data-contact-status]");
@@ -320,6 +320,18 @@ const getDriveDownloadUrl = (fileId) => (
 const getDriveThumbnailUrl = (fileId) => (
     /^[A-Za-z0-9_-]{10,}$/u.test(String(fileId || ""))
         ? `https://drive.google.com/thumbnail?id=${encodeURIComponent(fileId)}&sz=w1600`
+        : ""
+);
+
+const getDrivePreviewUrl = (fileId) => (
+    /^[A-Za-z0-9_-]{10,}$/u.test(String(fileId || ""))
+        ? `https://drive.google.com/file/d/${encodeURIComponent(fileId)}/preview`
+        : ""
+);
+
+const getDriveViewUrl = (fileId) => (
+    /^[A-Za-z0-9_-]{10,}$/u.test(String(fileId || ""))
+        ? `https://drive.google.com/file/d/${encodeURIComponent(fileId)}/view`
         : ""
 );
 
@@ -1633,52 +1645,32 @@ const clearVideoOrientation = (frame) => {
     frame.style.removeProperty("--video-aspect-ratio");
 };
 
-const syncVideoOrientation = (video, frame) => {
-    if (!video || !frame || !video.videoWidth || !video.videoHeight) return false;
+const syncVideoOrientation = (media, frame) => {
+    const mediaWidth = media?.videoWidth || media?.naturalWidth || 0;
+    const mediaHeight = media?.videoHeight || media?.naturalHeight || 0;
+    if (!frame || !mediaWidth || !mediaHeight) return false;
 
-    const { videoWidth, videoHeight } = video;
-    const orientation = videoHeight > videoWidth
+    const orientation = mediaHeight > mediaWidth
         ? "portrait"
-        : videoWidth > videoHeight
+        : mediaWidth > mediaHeight
             ? "landscape"
             : "square";
 
     clearVideoOrientation(frame);
     frame.classList.add(`is-${orientation}`);
-    frame.style.setProperty("--video-aspect-ratio", `${videoWidth} / ${videoHeight}`);
+    frame.style.setProperty("--video-aspect-ratio", `${mediaWidth} / ${mediaHeight}`);
     return true;
-};
-
-const pauseVideoPreview = (preview, reset = false) => {
-    preview.pause();
-    if (!reset || !Number.isFinite(preview.duration)) return;
-
-    try {
-        preview.currentTime = Math.min(0.12, preview.duration / 2);
-    } catch {
-        // A thumbnail seek can fail while a browser is still reading metadata.
-    }
-};
-
-const setVideoWatchButtonState = (isPlaying) => {
-    videoWatchButton?.classList.toggle("is-playing", isPlaying);
-    const label = videoWatchButton?.querySelector("span:first-child");
-    if (label) label.textContent = isPlaying ? "Pause" : "Watch";
 };
 
 const cleanUpVideoDetail = () => {
     videoDetailAnimation?.cancel();
     videoDetailAnimation = null;
-    videoDetailVideo?.pause();
-    if (videoDetailVideo) {
-        videoDetailVideo.removeAttribute("src");
-        videoDetailVideo.removeAttribute("poster");
-        videoDetailVideo.controls = false;
-        videoDetailVideo.muted = true;
-        videoDetailVideo.load();
+    if (videoDetailFrame) {
+        videoDetailFrame.removeAttribute("src");
+        videoDetailFrame.title = "Selected video — Google Drive player";
     }
+    videoOpenLink?.removeAttribute("href");
     clearVideoOrientation(videoDetail);
-    setVideoWatchButtonState(false);
 };
 
 const showVideoGalleryStatus = (message) => {
@@ -1694,26 +1686,6 @@ const setVideoMode = (mode) => {
     videoMode = mode;
     if (videoCinema) videoCinema.dataset.mode = mode;
     videoDetail?.setAttribute("aria-hidden", String(mode !== "detail"));
-};
-
-const playActiveVideoPreview = () => {
-    videoPosterButtons.forEach((poster, index) => {
-        const preview = poster.querySelector("video");
-        if (!preview) return;
-
-        if (
-            index === videoActiveIndex &&
-            videoMode === "rail" &&
-            videoSection?.classList.contains("is-active") &&
-            !reducedMotion.matches
-        ) {
-            void preview.play().catch(() => {
-                // A still frame remains if the browser blocks muted autoplay.
-            });
-        } else {
-            pauseVideoPreview(preview);
-        }
-    });
 };
 
 const updateVideoRail = ({ focus = false, scroll = true } = {}) => {
@@ -1738,7 +1710,6 @@ const updateVideoRail = ({ focus = false, scroll = true } = {}) => {
         activePoster.scrollIntoView({ behavior: reducedMotion.matches ? "auto" : "smooth", inline: "center", block: "nearest" });
     }
     if (focus) activePoster?.focus({ preventScroll: true });
-    playActiveVideoPreview();
 };
 
 const setVideoActiveIndex = (index, options = {}) => {
@@ -1775,36 +1746,22 @@ const animateVideoDetailFrom = (sourceBounds, reverse = false) => {
 const openVideoDetail = (index = videoActiveIndex, source = videoPosterButtons[index]) => {
     const category = getActiveVideoCategory();
     const entry = category?.videos[index];
-    if (!entry || !videoDetail || !videoDetailVideo) return;
+    const previewUrl = getDrivePreviewUrl(entry?.id);
+    if (!entry || !videoDetail || !videoDetailFrame || !previewUrl) return;
 
     setVideoActiveIndex(index, { scroll: false });
     const sourceBounds = source?.getBoundingClientRect();
-    const sourcePreview = source?.querySelector("video");
-    const sourceTime = Number.isFinite(sourcePreview?.currentTime) ? sourcePreview.currentTime : 0;
+    const sourcePreview = source?.querySelector("img");
     videoDetailSource = source;
     videoDetailTitle.textContent = entry.title;
     videoDetailCategory.textContent = category.name;
     clearVideoOrientation(videoDetail);
-    syncVideoOrientation(sourcePreview, videoDetail);
-    videoDetailVideo.crossOrigin = "anonymous";
-    videoDetailVideo.poster = getDriveThumbnailUrl(entry.id);
-    videoDetailVideo.src = entry.src;
-    videoDetailVideo.controls = true;
-    videoDetailVideo.muted = false;
-    videoDetailVideo.load();
-    videoDetailVideo.addEventListener("loadedmetadata", () => {
-        syncVideoOrientation(videoDetailVideo, videoDetail);
-        if (Number.isFinite(videoDetailVideo.duration)) {
-            videoDetailVideo.currentTime = Math.min(sourceTime, Math.max(0, videoDetailVideo.duration - 0.1));
-        }
-    }, { once: true });
-    setVideoWatchButtonState(true);
-    void videoDetailVideo.play().catch(() => {
-        // Native controls and the Watch button remain available if playback is blocked.
-        setVideoWatchButtonState(false);
-    });
-
-    videoGallery?.querySelectorAll("video").forEach((preview) => preview.pause());
+    if (!syncVideoOrientation(sourcePreview, videoDetail)) {
+        sourcePreview?.addEventListener("load", () => syncVideoOrientation(sourcePreview, videoDetail), { once: true });
+    }
+    videoDetailFrame.title = `${entry.title} — Google Drive video player`;
+    videoDetailFrame.src = previewUrl;
+    if (videoOpenLink) videoOpenLink.href = getDriveViewUrl(entry.id);
     setVideoMode("detail");
     window.requestAnimationFrame(() => {
         videoDetailAnimation?.cancel();
@@ -1823,7 +1780,6 @@ const closeVideoDetail = (immediate = false) => {
     const finish = () => {
         setVideoMode("rail");
         cleanUpVideoDetail();
-        playActiveVideoPreview();
         if (!immediate && source?.isConnected) source.focus({ preventScroll: true });
         videoDetailSource = null;
     };
@@ -1837,19 +1793,6 @@ const closeVideoDetail = (immediate = false) => {
     }
     videoDetailAnimation = animation;
     animation.addEventListener("finish", finish, { once: true });
-};
-
-const toggleVideoWatch = () => {
-    if (!videoDetailVideo || videoMode !== "detail") return;
-    videoDetailVideo.controls = true;
-    videoDetailVideo.muted = false;
-    if (videoDetailVideo.paused) {
-        void videoDetailVideo.play().catch(() => setVideoWatchButtonState(false));
-        setVideoWatchButtonState(true);
-    } else {
-        videoDetailVideo.pause();
-        setVideoWatchButtonState(false);
-    }
 };
 
 const renderActiveVideoCategory = () => {
@@ -1871,17 +1814,15 @@ const renderActiveVideoCategory = () => {
         button.style.setProperty("--video-poster-index", index);
         button.setAttribute("aria-label", `Focus ${entry.title}`);
 
-        const preview = document.createElement("video");
+        const preview = document.createElement("img");
         preview.className = "video-poster__preview";
-        preview.crossOrigin = "anonymous";
-        preview.poster = getDriveThumbnailUrl(entry.id);
-        preview.src = entry.src;
-        preview.muted = true;
-        preview.loop = true;
-        preview.playsInline = true;
-        preview.preload = "metadata";
+        preview.src = getDriveThumbnailUrl(entry.id);
+        preview.alt = "";
+        preview.decoding = "async";
+        preview.loading = "lazy";
+        preview.referrerPolicy = "no-referrer";
+        preview.draggable = false;
         preview.setAttribute("aria-hidden", "true");
-        preview.tabIndex = -1;
 
         const meta = document.createElement("span");
         meta.className = "video-poster__meta";
@@ -2032,13 +1973,11 @@ const setVideoGalleryActive = (isActive) => {
         if (videoMode === "detail") closeVideoDetail(true);
         setVideoMode("rail");
         cleanUpVideoDetail();
-        videoGallery?.querySelectorAll("video").forEach((preview) => preview.pause());
         return;
     }
 
     if (videoCategories.length > 0) {
         renderActiveVideoCategory();
-        playActiveVideoPreview();
     }
 };
 
@@ -3393,9 +3332,6 @@ aiViewer?.addEventListener("click", (event) => {
 videoPreviousButton?.addEventListener("click", () => setVideoActiveIndex(videoActiveIndex - 1, { focus: true }));
 videoNextButton?.addEventListener("click", () => setVideoActiveIndex(videoActiveIndex + 1, { focus: true }));
 videoDetailCloseButton?.addEventListener("click", () => closeVideoDetail());
-videoWatchButton?.addEventListener("click", toggleVideoWatch);
-videoDetailVideo?.addEventListener("play", () => setVideoWatchButtonState(true));
-videoDetailVideo?.addEventListener("pause", () => setVideoWatchButtonState(false));
 
 printObjects.forEach((printObject) => {
     printObject.addEventListener("click", () => openPrintViewer(printObject));

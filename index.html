@@ -7,12 +7,12 @@
     <meta name="description" content="Jerome Balangue — graphic artist and video editor portfolio.">
     <meta name="referrer" content="no-referrer">
     <meta http-equiv="Content-Security-Policy"
-        content="default-src 'none'; base-uri 'self'; form-action https://script.google.com https://*.googleusercontent.com; frame-src https://script.google.com https://*.googleusercontent.com; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob: https://drive.google.com https://drive.usercontent.google.com https://*.googleusercontent.com; media-src blob: https://drive.google.com https://drive.usercontent.google.com https://*.googleusercontent.com; connect-src 'self' https://script.google.com https://*.googleusercontent.com; object-src 'none'; worker-src 'none'; manifest-src 'self'; require-trusted-types-for 'script'; trusted-types 'none'; upgrade-insecure-requests">
+        content="default-src 'none'; base-uri 'self'; form-action https://script.google.com https://*.googleusercontent.com; frame-src https://drive.google.com https://script.google.com https://*.googleusercontent.com; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob: https://drive.google.com https://drive.usercontent.google.com https://*.googleusercontent.com; media-src blob: https://drive.google.com https://drive.usercontent.google.com https://*.googleusercontent.com; connect-src 'self' https://script.google.com https://*.googleusercontent.com; object-src 'none'; worker-src 'none'; manifest-src 'self'; require-trusted-types-for 'script'; trusted-types 'none'; upgrade-insecure-requests">
     <title>Jerome Balangue | Portfolio</title>
     <script src="static/js/head.js"></script>
     <link rel="preload" href="static/fonts/manrope-latin.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="preload" href="static/fonts/pinyon-script-latin.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="stylesheet" href="static/css/main.css?v=1.0.57">
+    <link rel="stylesheet" href="static/css/main.css?v=1.0.58">
     <link rel="preload" href="https://drive.google.com/thumbnail?id=1Ot_dZXQnqWO_bNbGQE6gdhXietuIP2UV&amp;sz=w4096" as="image" crossorigin>
     <link rel="preload" href="https://drive.google.com/thumbnail?id=1_yIVXlPeFAeFLOZxWs7UTMhw7TAqFzN-&amp;sz=w4096" as="image" crossorigin>
     <link rel="preload" href="https://drive.google.com/thumbnail?id=10BJZLxjdvVAzFq2gq89UAthh-DQgezRo&amp;sz=w4096" as="image" crossorigin>
@@ -494,8 +494,10 @@
                     </div>
 
                     <article class="video-cinema__detail" data-video-detail aria-hidden="true">
-                        <video class="video-cinema__detail-video" data-video-detail-video loop playsinline
-                            crossorigin="anonymous" preload="metadata"></video>
+                        <iframe class="video-cinema__detail-player" data-video-detail-frame
+                            title="Selected video — Google Drive player" referrerpolicy="no-referrer"
+                            sandbox="allow-scripts allow-same-origin allow-presentation"
+                            allow="autoplay; fullscreen" allowfullscreen></iframe>
                         <span class="video-cinema__detail-shade" aria-hidden="true"></span>
 
                         <div class="video-cinema__detail-copy">
@@ -503,11 +505,11 @@
                             <h3 data-video-detail-title>Selected video</h3>
                         </div>
 
-                        <button class="video-cinema__detail-action video-cinema__detail-action--watch" type="button"
-                            data-video-watch>
-                            <span>Watch</span>
+                        <a class="video-cinema__detail-action video-cinema__detail-action--watch"
+                            data-video-open target="_blank" rel="noopener noreferrer">
+                            <span>Open separately</span>
                             <span class="video-cinema__action-ring" aria-hidden="true"></span>
-                        </button>
+                        </a>
 
                         <button class="video-cinema__back" type="button" data-video-detail-close>
                             <span aria-hidden="true">&larr;</span>
@@ -1005,7 +1007,7 @@
 
     <script src="static/js/print-3d.bundle.js?v=1.0.15"></script>
     <script src="static/js/drive-media-data.js?v=1.0.3"></script>
-    <script src="static/js/main.js?v=1.0.52"></script>
+    <script src="static/js/main.js?v=1.0.53"></script>
 </body>
 
 </html>
